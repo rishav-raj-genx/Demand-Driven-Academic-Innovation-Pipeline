@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     )
     INTERNAL_AI_SERVICE_KEY: str = "dev_internal_ai_service_secret_key"
     EMBEDDING_MODEL_NAME: str = "sentence-transformers/all-MiniLM-L6-v2"
-    DEDUP_SIMILARITY_THRESHOLD: float = 0.85
+    DEDUP_SIMILARITY_THRESHOLD: float = 0.80
     SOFT_CAPACITY_PENALTY: float = 0.25
     HARD_CAPACITY_PENALTY: float = 0.45
 

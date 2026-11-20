@@ -1,7 +1,7 @@
 # PROJECT_STATE: SIH26043 - Demand-Driven Academic Innovation Pipeline
 
 **Team:** The Unknowns  
-**Status:** Phase 3 Complete (S3 Direct Media Uploads, Challenge APIs, PWA Service Worker & Citizen Explorer UI)  
+**Status:** Phase 4 Complete (Local Embeddings, pgvector Semantic Deduplication, Capacity-Aware Matchmaking & Seed Evaluation)  
 **Last Updated:** 2026-11-20
 
 ---
@@ -654,3 +654,98 @@ Result:
 - [x] Configured `serverExternalPackages: ["bullmq"]` in `apps/web/next.config.ts` to cleanly isolate BullMQ optional drivers from Webpack client/server bundling.
 - [x] Verified zero TypeScript errors across all workspaces (`pnpm -r typecheck`), 68/68 passing tests in `@sih/web`, 83/83 passing tests monorepo-wide (`pnpm -r test`), and clean Next.js 15 production build with 22 static & dynamic routes (`next build`).
 - [x] Verified mobile-first responsive layout across 375px (mobile PWA) and 1280px (desktop) viewports.
+
+---
+
+## 9. Phase 4 Progress & Completed Milestones
+
+### Milestone 4.1: Local CPU-Friendly Embedding Service & pgvector Database Layer
+- [x] Added `psycopg-pool>=3.2.0` to `services/ai-engine/pyproject.toml` and `requirements.txt` via `uv`.
+- [x] Implemented `services/ai-engine/app/db.py`:
+  - `ConnectionPool` (`psycopg_pool`) singleton with automatic `pgvector.psycopg.register_vector` registration on connection checkout.
+  - Context manager `get_db_connection()` and FastAPI dependency `get_db()`.
+  - Graceful startup and shutdown lifecycle management (`get_db_pool`, `close_db_pool`).
+- [x] Implemented `services/ai-engine/app/embeddings.py`:
+  - Lazy singleton loader `get_embedding_model()` for `sentence-transformers/all-MiniLM-L6-v2` (384 dimensions, local CPU inference, offline safe).
+  - L2-normalized vector embedding generator `embed_text(text: str) -> list[float]` ensuring $\|v\|_2 = 1.0$.
+  - Batch inference utility `embed_texts(texts: list[str]) -> list[list[float]]`.
+  - Canonical challenge text builder `build_challenge_text(title, description, domain)`.
+  - Canonical institution capability text builder `build_institution_text(name, domains, faculty_specializations, lab_facilities, profile_summary)`.
+  - Curated R&D capability knowledge base for all 10 seeded Jharkhand HEIs across 8 challenge domains (`SEEDED_HEI_PROFILES` with dynamic fallback resolver).
+- [x] Implemented Embedding API Endpoints in `services/ai-engine/app/main.py`:
+  - `POST /internal/v1/embed/text`: Computes 384-dim normalized embedding for arbitrary text.
+  - `POST /internal/v1/embed/challenge`: Constructs canonical challenge text and computes 384-dim embedding.
+  - `POST /internal/v1/embed/institution`: Validates UUID, extracts capability profile, computes embedding, and persists to `institutions.capability_embedding` in PostgreSQL with updated timestamp.
+  - `POST /internal/v1/embed/institutions/all`: Batch-computes capability embeddings for all institutions and persists them in a single database transaction.
+- [x] Implemented comprehensive test suite in `services/ai-engine/tests/test_embeddings.py`:
+  - Shape check: Output vector dimension is exactly `384`.
+  - L2 norm check: $\|v\|_2 \approx 1.0$ within $10^{-4}$ tolerance.
+  - Semantic separation: Cosine similarity for semantically similar civic issues > `0.65` (observed `0.704` for Arsenic Drinking Water vs Groundwater Filtration), while unrelated topics score < `0.30` (observed `0.057` for Quantum Computing).
+  - Security check: Constant-time service key enforcement (401 on missing, 403 on invalid).
+  - Input validation: 400 on malformed UUID, 404 on non-existent institution.
+  - Batch verification: Confirms all 10 seeded institutions have non-null 384-dim `capability_embedding`.
+- [x] Executed live batch embedding against running PostgreSQL container:
+  - Confirmed all 10 seeded Jharkhand institutions (`C-44102`, `S-12055`, `U-0202`, `U-0203`, `U-0204`, `U-0205`, `U-0206`, `U-0207`, `U-0208`, `U-0210`) have non-null `capability_embedding` with `vector_dims = 384`.
+- [x] Verified test suite: 13/13 passing tests in `services/ai-engine/.venv/bin/pytest`, 68/68 passing tests in `@sih/web`, 83/83 passing tests in TypeScript monorepo, and 0 TypeScript errors.
+
+### Milestone 4.2: pgvector Semantic Deduplication & Capacity-Aware HEI Matchmaking
+- [x] Implemented `services/ai-engine/app/deduplication.py`:
+  - `find_top_duplicate_candidates`: Queries canonical challenges (`canonical_id IS NULL`, `id != current_id`, `embedding IS NOT NULL`) ordered by `embedding <=> %s::vector ASC` limit 5.
+  - `run_deduplication`: Computes `similarity = 1.0 - cosine_distance`. If top candidate `similarity >= settings.DEDUP_SIMILARITY_THRESHOLD` (0.85), marks challenge `status = 'DUPLICATE_MERGED'`, sets `canonical_id = top_match_id`, and increments parent challenge `endorsement_count` inside an atomic database transaction.
+  - Idempotency guard: Prevents double-incrementing canonical endorsement count on repeat runs.
+- [x] Implemented `services/ai-engine/app/matching.py`:
+  - Queries all `VERIFIED` institutions with non-null `capability_embedding`.
+  - Computes ranking via PostgreSQL (`pgvector` + PostGIS `ST_DistanceSphere`):
+    - `raw_similarity = 1 - (capability_embedding <=> challenge_embedding)`
+    - `distance_km = ST_DistanceSphere(inst.location, challenge.location) / 1000.0`
+    - `geo_boost = 0.08 * exp(-distance_km / 150.0)` (0.0 if location missing)
+    - `utilization = active_projects / max(max_capacity, 1)`
+    - `capacity_penalty = 0.45 if utilization >= 1.0 else 0.25 * (utilization ** 2)`
+    - `final_score = clamp(raw_similarity + geo_boost - capacity_penalty, 0.0, 1.0)`
+  - `generate_match_explanation`: Formats concise human-readable feedback (e.g. *"Strong domain match (0.81), local proximity (+0.06), no overload penalty (20% capacity)"* or *"Penalized (-0.45) — institution at 100% capacity; routed to available partner"*).
+  - `run_capability_matching`: Upserts Top 5 matches into `capability_matches` table (`ON CONFLICT (challenge_id, institution_id) DO UPDATE`), sets status to `'SUGGESTED'`, and updates challenge status to `'MATCHED'`.
+- [x] Implemented Orchestration Endpoint in `services/ai-engine/app/main.py`:
+  - `POST /internal/v1/challenges/{challenge_id}/analyze`:
+    - Validates challenge UUID and fetches record from PostgreSQL.
+    - Generates 384-dim embedding if null and persists to `challenges.embedding`.
+    - Evaluates deduplication: merges duplicate and returns early if similarity >= 0.85.
+    - Evaluates capability matching: computes capacity-aware scores, upserts top 5 matches, sets `MATCHED`, and returns top 5 ranked institutions.
+    - Fully idempotent on multiple executions.
+- [x] Implemented comprehensive test suite in `services/ai-engine/tests/test_dedup_and_matching.py`:
+  - **Test A (Deduplication)**: Verified paraphrased duplicate challenge triggers `DUPLICATE_MERGED`, sets `canonical_id`, and increments parent `endorsement_count` from 5 to 6 in a single transaction; confirmed re-running is idempotent without double-incrementing.
+  - **Test B (Load Balancing)**: Verified that given equal `raw_similarity = 0.85`, an overloaded Tier-1 HEI (5/5 projects, penalty 0.45 -> score 0.4573) is strictly outranked by an unburdened Tier-2 HEI (1/5 projects, penalty 0.01 -> score 0.8973) ranking #1 with +0.44 margin; confirmed identical ranking behavior in direct PostgreSQL query.
+  - End-to-end orchestration tests for `POST /internal/v1/challenges/{id}/analyze`.
+  - Security tests (401, 403, 400, 404).
+- [x] Verified full monorepo test suite: 19/19 passing tests in `services/ai-engine/.venv/bin/pytest`, 68/68 in `@sih/web`, 9/9 in `@sih/db`, 6/6 in `@sih/shared` (102/102 total passing tests, 0 failures), and 0 TypeScript errors.
+
+### Milestone 4.3: Batch Seed Analysis, Empirical Deduplication Calibration & Load Balancing
+- [x] Implemented `POST /internal/v1/challenges/analyze-pending` (`services/ai-engine/app/main.py`):
+  - Fetches pending challenges (`embedding IS NULL`) in chronological order (`created_at ASC`) so earlier challenges act as canonical parents for later duplicates.
+  - Generates 384-dim normalized MiniLM embeddings.
+  - Executes semantic deduplication; merges duplicates, links `canonical_id`, and increments canonical `endorsement_count`.
+  - For unique challenges, computes capacity-aware PostGIS + pgvector matching and upserts Top 5 into `capability_matches`.
+- [x] Empirically Calibrated `DEDUP_SIMILARITY_THRESHOLD`:
+  - Measured pairwise MiniLM cosine similarities across all 30 seeded challenges:
+    - `jh-chal-005` vs `jh-chal-006` (Solar Micro-Grids): **0.8135** (Intentional duplicate pair)
+    - `jh-chal-001` vs `jh-chal-002` (Water Filtration): **0.8125** (Intentional duplicate pair)
+    - `jh-chal-017` vs `jh-chal-018` (Mining Dust): **0.7313**
+    - Distinct domain pairs: 0.05 - 0.67
+  - Calibrated default `DEDUP_SIMILARITY_THRESHOLD = 0.80` in `services/ai-engine/app/config.py` cleanly isolating near-duplicates from distinct civic demands.
+- [x] Implemented Integration Test Suite in `services/ai-engine/tests/test_seed_evaluation.py`:
+  - `test_seed_challenges_batch_analysis_and_evaluation`:
+    - Verified all 30 seeded challenges processed with 384-dim embeddings.
+    - Verified `jh-chal-002` merged to `jh-chal-001` (similarity 0.8125, parent endorsements incremented).
+    - Verified `jh-chal-006` merged to `jh-chal-005` (similarity 0.8135, parent endorsements incremented).
+    - Verified all unique challenges received ranked `capability_matches`.
+    - Verified Tier-2/3 institutions heavily occupy Rank #1 positions (Tier-2/3 took 28 out of 29 Rank #1 placements = 96.6%, while overloaded Tier-1 NIT Jamshedpur took 0 due to -0.45 penalty).
+  - `test_seed_batch_analysis_idempotency`: Confirmed re-running `analyze-pending` when all challenges are analyzed completes with 0 pending challenges and zero side effects.
+- [x] Monorepo Test & Type Verification:
+  - `services/ai-engine/.venv/bin/pytest`: 21/21 passing tests (100% pass).
+  - `@sih/web`: 68/68 passing tests.
+  - `@sih/db`: 9/9 passing tests.
+  - `@sih/shared`: 6/6 passing tests.
+  - Total: 104 passing tests monorepo-wide.
+  - `pnpm -r typecheck`: 0 errors across all TypeScript packages.
+
+
+

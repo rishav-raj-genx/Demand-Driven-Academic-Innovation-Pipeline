@@ -11,7 +11,7 @@ def client():
 
 def test_config_defaults():
     settings = get_settings()
-    assert settings.DEDUP_SIMILARITY_THRESHOLD == 0.85
+    assert settings.DEDUP_SIMILARITY_THRESHOLD == 0.80
     assert settings.SOFT_CAPACITY_PENALTY == 0.25
     assert settings.HARD_CAPACITY_PENALTY == 0.45
     assert settings.EMBEDDING_MODEL_NAME == "sentence-transformers/all-MiniLM-L6-v2"
