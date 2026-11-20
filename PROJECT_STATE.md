@@ -1,7 +1,7 @@
 # PROJECT_STATE: SIH26043 - Demand-Driven Academic Innovation Pipeline
 
 **Team:** The Unknowns  
-**Status:** Phase 6 Complete (HEI Capability Profile APIs, Bulk Institutional Profile Importer, BullMQ Re-Embedding Trigger & Mock SMS Inspection)  
+**Status:** Phase 5 & 6 Complete (BullMQ Multi-Queue Worker Daemon, HEI Capability Portal, Bulk Importer, Live Mock SMS Inspector & Phase 5 Handoff Report)  
 **Last Updated:** 2026-11-20
 
 ---
@@ -916,12 +916,53 @@ Result:
     9. Re-import idempotency confirming action `UPDATED` and `updated: 3`.
     10. Immutable `AuditLog` logging with batch metadata.
 - [x] Monorepo Test Coverage:
-  - `@sih/web`: 90/90 passing tests (10 new bulk-import tests + 80 existing tests).
+  - `@sih/web`: 91/91 passing tests (10 bulk-import tests + 81 existing tests).
   - `@sih/worker`: 11/11 passing tests.
   - `@sih/db`: 9/9 passing tests.
   - `@sih/shared`: 6/6 passing tests.
   - `services/ai-engine`: 21/21 passing tests (`pytest`).
-  - Total: **137 passing tests** across 5 workspaces (0 failures).
+  - Total: **138 passing tests** across 5 workspaces (0 failures).
+
+### Milestone 6.5: HEI Portal UI, Admin Bulk Ingestion Tools & Phase 5 Finalization
+- [x] Implemented `/hei/dashboard` (`apps/web/src/app/hei/dashboard/page.tsx`):
+  - Institutional verification trust badge (AISHE code, tier, and district).
+  - Capacity Utilization Progress Bar (`activeProjects / maxCapacity`) with real-time overload warning badge (`-0.45 Overload Penalty Active` at saturation).
+  - Incoming AI-matched civic/industrial challenges list.
+  - 4-Card **Score Breakdown Grid** on each matched challenge displaying:
+    1. `Cosine Similarity` (Semantic domain alignment)
+    2. `Geo Boost` (PostGIS proximity boost)
+    3. `Capacity Penalty` (Load-balancing penalty)
+    4. `Final Score` (Ranked match score)
+  - Full match insight text pill.
+  - "Claim Challenge → Start PoC" action button launching incubation reservation modal.
+  - Institutional switcher dropdown allowing demo users/administrators to inspect any Jharkhand HEI profile.
+- [x] Implemented `/hei/profile` (`apps/web/src/app/hei/profile/page.tsx`):
+  - Interactive chip editor for capability domains, faculty research specializations, and lab equipment.
+  - Project capacity limit slider and number input (1–50) with live utilization percentage.
+  - Overview textarea with 0/2000 character counter.
+  - "Save Profile & Trigger Re-Embedding" button calling `PUT /api/v1/institutions/[id]/profile`.
+  - Animated toast confirmation banner on success: *"Institutional capability profile saved! Background re-embedding job queued in BullMQ (hei.embed) with 384-dimensional pgvector update."*
+- [x] Implemented `/admin/import` (`apps/web/src/app/admin/import/page.tsx`):
+  - Drag-and-drop CSV / JSON file upload zone with file size and type validation.
+  - "Download Sample CSV Template" button generating `sample_hei_bulk_import.csv` with 3 Jharkhand colleges.
+  - Live progress submission state with loading spinner.
+  - Row-by-row results table with metric summary cards (`Total`, `Imported`, `Updated`, `Rejected`) and granular error diagnostics.
+- [x] Implemented `/admin/mock-sms` (`apps/web/src/app/admin/mock-sms/page.tsx`):
+  - Live log inspector querying `GET /api/v1/notifications/mock-sms`.
+  - 5-second auto-refresh toggle + manual refresh button.
+  - Search filter querying recipient name, phone, title, or challenge text.
+  - Realistic SMS message bubble viewer highlighting mandatory `[MOCK SMS - SIH26043]` prefix.
+- [x] Extended `AppShell.tsx` and Navigation:
+  - Added "Bulk Import" (`/admin/import`) and "Mock SMS Logs" (`/admin/mock-sms`) navigation links.
+  - Updated `AppShell.test.ts` verifying role-based navigation permissions.
+- [x] Completed Phase 5 Handoff Report in `HANDOFF.md`:
+  - Detailed queue topography, BullMQ retry policy, API references, UI capabilities, test matrix, and Phase 6 execution roadmap.
+- [x] Build & Test Verification:
+  - `pnpm --filter @sih/web build`: 30 routes compiled with 0 errors.
+  - `pnpm --filter @sih/web test`: 91/91 tests passed.
+  - `pnpm -r test`: 117/117 TypeScript tests passed across 4 packages.
+  - `services/ai-engine`: 21/21 Python pytest tests passed.
+  - Grand total: **138 tests passing** monorepo-wide.
 
 
 

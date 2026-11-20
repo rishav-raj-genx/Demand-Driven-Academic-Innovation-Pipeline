@@ -29,7 +29,9 @@ describe("Role-Aware AppShell Navigation Access Suite", () => {
     expect(instLabels).toContain("HEI Portal");
     expect(instLabels).toContain("Challenges");
     expect(instLabels).toContain("Verify Org");
+    expect(instLabels).toContain("Mock SMS Logs");
     expect(instLabels).not.toContain("Admin Console");
+    expect(instLabels).not.toContain("Bulk Import");
 
     expect(heiLabels).toEqual(instLabels);
   });
@@ -46,7 +48,7 @@ describe("Role-Aware AppShell Navigation Access Suite", () => {
     expect(labels).not.toContain("Admin Console");
   });
 
-  it("should provide SUPER_ADMIN with full portal access including Admin Console", () => {
+  it("should provide SUPER_ADMIN with full portal access including Admin Console, Bulk Import, and Mock SMS", () => {
     const adminRoutes = getAllowedNavItems("SUPER_ADMIN");
     const labels = adminRoutes.map((i) => i.label);
 
@@ -56,5 +58,19 @@ describe("Role-Aware AppShell Navigation Access Suite", () => {
     expect(labels).toContain("Challenges");
     expect(labels).toContain("Verify Org");
     expect(labels).toContain("Admin Console");
+    expect(labels).toContain("Bulk Import");
+    expect(labels).toContain("Mock SMS Logs");
+  });
+
+  it("should provide GOVT_OFFICIAL with Bulk Import and Mock SMS logs", () => {
+    const govtRoutes = getAllowedNavItems("GOVT_OFFICIAL");
+    const labels = govtRoutes.map((i) => i.label);
+
+    expect(labels).toContain("Dashboard");
+    expect(labels).toContain("Challenges");
+    expect(labels).toContain("Bulk Import");
+    expect(labels).toContain("Mock SMS Logs");
+    expect(labels).not.toContain("HEI Portal");
+    expect(labels).not.toContain("Admin Console");
   });
 });

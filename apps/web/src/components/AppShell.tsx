@@ -15,6 +15,8 @@ import {
   LayoutDashboard,
   CheckCircle2,
   Users,
+  FileSpreadsheet,
+  MessageSquare,
 } from "lucide-react";
 
 export interface ShellUser {
@@ -104,6 +106,18 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/admin",
     icon: Users,
     roles: ["SUPER_ADMIN"],
+  },
+  {
+    label: "Bulk Import",
+    href: "/admin/import",
+    icon: FileSpreadsheet,
+    roles: ["GOVT_OFFICIAL", "SUPER_ADMIN"],
+  },
+  {
+    label: "Mock SMS Logs",
+    href: "/admin/mock-sms",
+    icon: MessageSquare,
+    roles: ["GOVT_OFFICIAL", "SUPER_ADMIN", "INSTITUTION_ADMIN", "HEI_ADMIN"],
   },
 ];
 
