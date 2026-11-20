@@ -9,6 +9,7 @@ export const QUEUE_NAMES = {
   CHALLENGE_PIPELINE: "challenge-pipeline",
   HEI_EMBEDDING: "hei-embedding",
   NOTIFICATION_DISPATCH: "notification-dispatch",
+  NOTIFY_SMS: "notify.sms",
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
@@ -31,6 +32,15 @@ export interface NotificationDispatchJobData {
   payload: Record<string, unknown>;
 }
 
+export interface NotificationJobData {
+  recipientId: string;
+  phoneNumber?: string;
+  title: string;
+  message: string;
+  type?: string;
+  metadata?: Record<string, unknown>;
+}
+
 // ============================================================================
 // Redis Connection for BullMQ
 // ============================================================================
@@ -50,6 +60,7 @@ const globalForQueues = globalThis as unknown as {
   challengeQueue?: Queue<ChallengeProcessJobData>;
   heiEmbeddingQueue?: Queue<HeiEmbeddingJobData>;
   notificationQueue?: Queue<NotificationDispatchJobData>;
+  notifySmsQueue?: Queue<NotificationJobData>;
 };
 
 export function getQueueRedisConnection(): Redis {
@@ -99,9 +110,22 @@ export function getNotificationQueue(): Queue<NotificationDispatchJobData> {
   return globalForQueues.notificationQueue;
 }
 
+export function getNotifySmsQueue(): Queue<NotificationJobData> {
+  if (!globalForQueues.notifySmsQueue) {
+    globalForQueues.notifySmsQueue = new Queue<NotificationJobData>(
+      QUEUE_NAMES.NOTIFY_SMS,
+      {
+        connection: getQueueRedisConnection(),
+      }
+    );
+  }
+  return globalForQueues.notifySmsQueue;
+}
+
 export const challengeQueue = getChallengeQueue();
 export const heiEmbeddingQueue = getHeiEmbeddingQueue();
 export const notificationQueue = getNotificationQueue();
+export const notifySmsQueue = getNotifySmsQueue();
 
 // ============================================================================
 // Job Enqueue Helpers
@@ -131,6 +155,23 @@ export async function enqueueHeiEmbed(data: HeiEmbeddingJobData) {
     data,
     {
       jobId: `hei-embed-${data.institutionId}-${Date.now()}`,
+      removeOnComplete: true,
+      attempts: 3,
+      backoff: {
+        type: "exponential",
+        delay: 2000,
+      },
+    }
+  );
+}
+
+export async function enqueueNotifySms(data: NotificationJobData) {
+  const queue = getNotifySmsQueue();
+  return queue.add(
+    "notify.sms",
+    data,
+    {
+      jobId: `notify-sms-${data.recipientId}-${Date.now()}`,
       removeOnComplete: true,
       attempts: 3,
       backoff: {

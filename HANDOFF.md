@@ -1,49 +1,60 @@
-# PHASE 5 HANDOFF REPORT: SIH26043
+# PHASE 6 HANDOFF REPORT: SIH26043
 
 **Project:** Demand-Driven Academic Innovation Pipeline  
 **Team:** The Unknowns  
-**Phase:** Phase 5 (Multi-Queue BullMQ Worker, Mock SMS Gateway, HEI Capability Profiles, Bulk Importer & Portal UI) — **COMPLETE**  
+**Phase:** Phase 6 (Project Lifecycle Management, Cryptographic Dual-Signature Engine, Off-Platform CSR Ledger & Collaborative Workspace UI) — **COMPLETE**  
 **Date:** 2026-11-20  
 
 ---
 
 ## 1. Executive Summary
 
-Phase 5 completes the asynchronous background processing layer, institutional capability management, administrative bulk ingestion, and the responsive user interface suite for the SIH26043 platform. 
-
-The background processing pipeline bridges the Next.js 15 App Router web application (`apps/web`), the containerized Redis message broker (`sih26043-redis`), the Python FastAPI AI Engine (`services/ai-engine`), and PostgreSQL 16 with PostGIS and pgvector (`sih26043-postgres`).
+Phase 6 delivers the collaborative execution heart of the SIH26043 platform: transitioning AI-matched civic/industrial challenges into formal, 4-stage Research & Development projects governed by cryptographic Dual-Signature gates, off-platform CSR milestone financial ledgers, bilateral MoUs, and NEP 2020 experiential learning credit accrual.
 
 ### Key Deliverables Completed:
-1. **Production Multi-Queue BullMQ Worker (`apps/worker`)**:
-   - Implemented typed FastAPI HTTP client (`apps/worker/src/clients/ai-client.ts`) with `X-Internal-Service-Key` authentication, 30s abort timeout, and structured error reporting.
-   - Implemented multi-queue job consumers (`challenge.process`, `hei.embed`, `notify.sms`, `dead-letter.queue`).
-   - Standardized BullMQ job options across all queues: `attempts: 3`, exponential backoff (`delay: 2000ms`), `removeOnComplete: true`, and dead-letter routing to `dead-letter.queue` on retry exhaustion.
-   - Implemented graceful shutdown trapping `SIGINT`/`SIGTERM` to close workers, drain Redis connections, and disconnect Prisma.
+1. **Challenge Claiming & Atomic Capacity Management (`POST /api/v1/projects`)**:
+   - Enforces prerequisite `CapabilityMatch` verification.
+   - Atomically checks and increments `Institution.activeProjects`, preventing institutional overloading (`409 CAPACITY_EXCEEDED`).
+   - Prevents double-claiming the same challenge (`409 CHALLENGE_ALREADY_CLAIMED`).
+   - Assigns creator as `FACULTY_LEAD` in `project_members`, sets initial phase to `POC`, updates `Challenge.status = "IN_PROJECT"`, and records platform `AuditLog`.
 
-2. **Controlled Mock SMS Gateway**:
-   - Implemented `notificationProcessor` (`apps/worker/src/processors/notification-processor.ts`) consuming `notify.sms` jobs.
-   - Formats realistic SMS text with mandatory tag prefix `[MOCK SMS - SIH26043]` and persists records into PostgreSQL `notification_logs` with `status: DELIVERED_MOCK` and structured metadata.
-   - Dispatches automated SMS notifications upon challenge intake: notifying citizens of successful matching or duplicate merges, and alerting top-ranked HEI administrators of high-affinity civic challenges.
+2. **Multidisciplinary Team & Industry Partner Assignment**:
+   - `POST /api/v1/projects/[id]/partner`: Verified industry/CSR partner joins or is assigned; enforces verified organization status (`403 ORG_NOT_VERIFIED`).
+   - `POST /api/v1/projects/[id]/members`: Faculty Lead assigns affiliated students; enforces institutional isolation (`400 STUDENT_NOT_AFFILIATED`).
 
-3. **HEI Capability Profile APIs & Re-Embedding Lifecycle (`apps/web`)**:
-   - Extended PostgreSQL `institutions` table with `domains`, `faculty_specializations`, `lab_facilities`, and `profile_summary`.
-   - `GET /api/v1/institutions`: Directory listing with pagination, tier/district/domain filtering, and computed capacity utilization ratios.
-   - `GET /api/v1/institutions/[id]`: Full institutional capability profile with PostGIS coordinates and Top 50 matched challenges queue.
-   - `PUT /api/v1/institutions/[id]/profile`: Strictly enforced RBAC (`INSTITUTION_ADMIN` own institution ID only, or `SUPER_ADMIN`), Zod validation, `AuditLog` recording, and automatic BullMQ `hei.embed` enqueueing.
-   - `GET /api/v1/notifications/mock-sms`: Admin inspection endpoint returning delivered mock SMS records with recipient metadata.
+3. **Milestone Deliverable Submission & SHA-256 Hashing (`POST /api/v1/projects/[id]/milestones`)**:
+   - Accepts deliverables for `project.currentPhase` (`title`, `summary`, S3 `artifactKeys`).
+   - Computes deterministic SHA-256 `contentHash = sha256(JSON.stringify({ projectId, phase, title, summary, artifactKeys }))`.
+   - Transitions milestone to `SUBMITTED_FOR_APPROVAL` and enqueues mock SMS alerts to required approver tracks.
 
-4. **Bulk Institutional Profile Importer (`POST /api/v1/institutions/bulk-import`)**:
-   - Enables administrative cold-start resolution by ingesting AISHE-aligned CSV or JSON datasets (up to 200 rows per batch).
-   - Strict RBAC (`GOVT_OFFICIAL` or `SUPER_ADMIN`).
-   - Clean row-level error isolation: malformed rows, unrecognized district codes, or flagged AISHE registrations are isolated into per-row rejection reports `{ row, aisheCode, reason }` without aborting the batch.
-   - Created `packages/db/prisma/seeds/data/sample_hei_bulk_import.csv` with 3 new Tier-2/3 Jharkhand colleges (`C-44150`, `C-44210`, `C-44320`).
-   - Generates PostGIS Point geometries and triggers BullMQ `hei.embed` vector re-embedding.
+4. **Cryptographic Dual-Signature Stage Gate Engine (`POST /api/v1/projects/[id]/transitions/sign`)**:
+   - Requires two distinct, verified role tracks to co-sign before advancing phases:
+     - **Academic Track (`ACADEMIC_APPROVER`)**: Verified HEI Faculty Lead or Institution Admin.
+     - **External Track (`EXTERNAL_APPROVER`)**: Verified Industry/CSR Partner or Government Official.
+   - Rejects unauthorized roles (Students and Citizens receive `403 FORBIDDEN`).
+   - Uniqueness constraints: prevents duplicate signing by the same user (`409 DUPLICATE_SIGNER`) or from the same track (`409 TRACK_ALREADY_SIGNED`).
+   - Stale Snapshot Hash Invalidation: tampering with or resubmitting deliverables changes the `contentHash`, invalidating older signatures.
+   - Transition execution: on 2/2 valid approved signatures, atomically advances `project.currentPhase` via `PLM_TRANSITIONS` (`POC → PROTOTYPING → FIELD_TEST → IP_TECH_TRANSFER`), distributes NEP 2020 credits, releases institutional active project capacity on final IP transfer, and dispatches mock SMS phase transition announcements.
 
-5. **HEI Portal & Admin Tools UI**:
-   - **`/hei/dashboard`**: Institutional verification trust badge (AISHE), visual capacity utilization progress bar with overload warning badge (`-0.45 Overload Penalty Active`), incoming AI-matched challenges with 4-card **Score Breakdown** (`Cosine Similarity`, `Geo Boost`, `Capacity Penalty`, `Final Score`), and "Claim Challenge → Start PoC" action button.
-   - **`/hei/profile`**: Interactive capability editor with dynamic tag chips for domains, faculty research focus, and laboratory equipment, profile summary character counter, and capacity limit slider; displays real-time toast confirmation when BullMQ re-embedding is queued.
-   - **`/admin/import`**: Drag-and-drop CSV/JSON bulk importer with downloadable `sample_hei_bulk_import.csv` template, live submission state, and row-by-row results table.
-   - **`/admin/mock-sms`**: Real-time log inspector for simulated SMS notifications with 5-second auto-refresh and search filtering.
+5. **Bilateral MoU Generation & Mutual Execution (`/api/v1/projects/[id]/mou`)**:
+   - `POST /api/v1/projects/[id]/mou`: Drafts structured MoU (`MOU-SIH26-XXXX`, IP ownership split totaling 100%, milestone schedule, and mandatory statutory compliance clause).
+   - `POST /api/v1/projects/[id]/mou/[mouId]/acknowledge`: Bilateral acknowledgment workflow (`HEI_ACKNOWLEDGED` → `MUTUALLY_ACKNOWLEDGED`), setting `signedDate` and updating `Project.fundingStatus = "CSR_PLEDGED"`.
+
+6. **Statutory Non-Custodial Compliance & Off-Platform CSR Ledger (`/api/v1/projects/[id]/csr-ledger`)**:
+   - **Payment Execution Prohibition**: Intercepts and strictly rejects payment processor payloads (Razorpay, Stripe, cards, CVVs, UPI VPAs, payment intents, or escrow tokens) with `400 IN_PLATFORM_PAYMENT_PROHIBITED`, honoring non-custodial legal compliance.
+   - **External Disbursement Logging**: Industry partners record off-platform bank deposits (`amountInr`, `paymentMode: EXTERNAL_NEFT | RTGS | CHEQUE | CSR_GRANT`, `externalReferenceNo`, S3 `receiptKey`).
+   - **Verification Gate (`PATCH .../[entryId]/verify`)**: Recipient HEI Admin or Govt. Official verifies external bank deposit, transitioning entry to `VERIFIED` and `Project.fundingStatus = "CSR_FUNDED"`. Fund senders cannot self-verify (403).
+
+7. **Collaborative PLM Workspace UI (`apps/web`)**:
+   - **`/projects`**: Directory of active projects filterable by Phase (`PoC`, `Prototyping`, `Field Test`, `IP & Tech Transfer`), Funding Status, and keyword search, with 4-phase micro-steppers and NEP credit badges.
+   - **`/projects/[id]`**: Full PLM workspace featuring:
+     - 4-Phase Visual Stepper with completed checkmarks, current active pulse, and locked upcoming phases.
+     - Live Dual-Signature Approval Panel displaying Academic and External signature status, SHA-256 snapshot hash, copy action, and contextual "Sign & Approve Transition" button for eligible roles.
+     - Milestone Submission Drawer with direct S3 upload via presigned URLs (`purpose: "milestone_artifact"`).
+     - Off-Platform CSR Ledger Tab with compliance notice banner, financial KPI summaries, and verification actions.
+     - NEP 2020 Student Credits Tab displaying team roster and experiential credit breakdown.
+     - MoUs & Legal Agreements Tab.
+   - **`/projects/[id]/mou`**: Clean, formal printable MoU document layout with `@media print` CSS, AISHE/MCA details, IP ownership split, milestone schedule, statutory compliance clause, and bilateral digital execution stamps.
 
 ---
 
@@ -55,77 +66,84 @@ The background processing pipeline bridges the Next.js 15 App Router web applica
 | Redis 7 | `6379` | TCP (RESP) | `sih26043-redis` | `redis-cli ping` | Operational (BullMQ multi-queue transport) |
 | MinIO (S3 API) | `9000` | HTTP / S3 | `sih26043-minio` | `GET /minio/health/live` | Operational (`sih26043-uploads` bucket) |
 | MinIO Console | `9001` | HTTP / HTML | `sih26043-minio` | Browser Console | Operational |
-| Next.js Web App | `3000` | HTTP / HTML | `apps/web` | `GET /api/v1/health` | Operational (Next.js 15.1.7, 30 routes) |
+| Next.js Web App | `3000` | HTTP / HTML | `apps/web` | `GET /api/v1/health` | Operational (Next.js 15.5.29, 32 routes) |
 | AI Engine | `8000` | HTTP / JSON | `services/ai-engine` | `GET /health` | Operational (FastAPI + MiniLM-L6-v2) |
 | BullMQ Worker | N/A | Worker Daemon | `apps/worker` | `pnpm --filter @sih/worker check` | Operational (3 queue workers + dead letter) |
 
 ---
 
-## 3. Queue Architecture & Background Pipelines
+## 3. PLM Phase Progression & Dual-Signature Topology
 
 ```
-                             [ Next.js API Routes ]
-                                       │
-        ┌──────────────────────────────┼──────────────────────────────┐
-        ▼                              ▼                              ▼
-(challenge.process)              (hei.embed)                    (notify.sms)
-        │                              │                              │
-        ▼                              ▼                              ▼
-[challengeProcessor]           [heiEmbedProcessor]       [notificationProcessor]
-        │                              │                              │
-        ├──────────────────────────────┤                              │
-        ▼                              ▼                              ▼
-  FastAPI AI Engine              FastAPI AI Engine             PostgreSQL DB
-  POST /analyze                  POST /embed/institution       INSERT notification_logs
-  (MiniLM + PostGIS)             (MiniLM 384-dim)              (DELIVERED_MOCK)
-        │                                                             ▲
-        └──────────────┬──────────────────────────────────────────────┘
-                       ▼
-                 Enqueues SMS:
-                 1. Citizen match/merge status
-                 2. Top HEI Admin alert
+                  [ Proof of Concept (PoC) ]  ── 2 NEP Credits
+                              │
+               ┌──────────────┴──────────────┐
+               ▼                             ▼
+       [ Academic Track ]            [ External Track ]
+       Faculty Lead / Dean           Industry Partner / Govt
+               │                             │
+               └──────────────┬──────────────┘
+                              ▼
+           Dual Signatures Verified (Matching Hash)
+                              │
+                              ▼
+                  [ Prototyping Phase ]       ── 4 NEP Credits
+                              │
+                     Dual-Signature Gate
+                              │
+                              ▼
+                  [ Field Testing Phase ]     ── 6 NEP Credits
+                              │
+                     Dual-Signature Gate
+                              │
+                              ▼
+              [ IP & Tech Transfer Phase ]    ── 8 NEP Credits
+                              │
+                              ▼
+           - Decrements Institution.activeProjects (Frees Capacity)
+           - Records PROJECT_COMPLETED_CAPACITY_RELEASED AuditLog
+           - Dispatches Mock SMS Project Completion Announcements
 ```
-
-### BullMQ Configuration Parameters
-- **Attempts**: `3` (Max retry count)
-- **Backoff**: `{ type: "exponential", delay: 2000 }` (Retries after 2s, 4s, 8s)
-- **RemoveOnComplete**: `true`
-- **Dead-Letter Handling**: On 3rd failure, job is moved to `dead-letter.queue` and logged in PostgreSQL `audit_logs` with action `JOB_DEAD_LETTER`.
 
 ---
 
-## 4. API Endpoints Reference
+## 4. Phase 6 API Endpoints Reference
 
-### HEI & Institutional Profile Endpoints
-- **`GET /api/v1/institutions`**
-  - **Query Params**: `page`, `limit`, `tier`, `districtId`, `domain`, `status`
-  - **Response**: Paginated institution list with computed `utilizationRatio = activeProjects / maxCapacity` and `isAtCapacity` flag.
-- **`GET /api/v1/institutions/[id]`**
-  - **Response**: Full profile, PostGIS coordinates, and Top 50 `matchedChallenges` sorted by alignment score.
-- **`PUT /api/v1/institutions/[id]/profile`**
-  - **Auth**: `INSTITUTION_ADMIN` (own institution only) or `SUPER_ADMIN`.
-  - **Body**: `{ domains: string[], facultySpecializations: string[], labFacilities: string[], profileSummary: string, maxCapacity: number }`
-  - **Side-Effects**: Updates PostgreSQL, writes `AuditLog`, enqueues BullMQ `hei.embed` job.
-- **`POST /api/v1/institutions/bulk-import`**
-  - **Auth**: `GOVT_OFFICIAL` or `SUPER_ADMIN`.
-  - **Body**: CSV file / text or JSON array (max 200 rows).
-  - **Response**: `{ total, imported, updated, rejectedCount, rejected: [{ row, aisheCode, reason }], results: [...] }`.
+### Project Lifecycle Endpoints
+| Method | Endpoint | Authorized Roles | Purpose |
+|---|---|---|---|
+| `POST` | `/api/v1/projects` | `INSTITUTION_ADMIN`, `FACULTY`, `SUPER_ADMIN` | Claims AI-matched challenge, verifies capacity, increments `activeProjects`, creates project in `POC`. |
+| `GET` | `/api/v1/projects` | All Authenticated Roles | Paginated project directory filterable by phase, institution, and search. |
+| `GET` | `/api/v1/projects/[id]` | All Authenticated Roles | Full project state inspector (stakeholders, milestones, dual approvals, MoUs, CSR ledger, NEP summary). |
+| `PATCH`| `/api/v1/projects/[id]` | None (`405 METHOD_NOT_ALLOWED`) | Gated boundary: direct phase modifications strictly prohibited. |
+| `POST` | `/api/v1/projects/[id]/partner` | `INDUSTRY_PARTNER`, `HEI_ADMIN`, `FACULTY` | Verified industry partner joins or is assigned to active project. |
+| `POST` | `/api/v1/projects/[id]/members` | `INSTITUTION_ADMIN`, `FACULTY` | Assigns affiliated students to research project team. |
+| `POST` | `/api/v1/projects/[id]/milestones` | `INSTITUTION_ADMIN`, `FACULTY` | Submits deliverables, computes SHA-256 fingerprint, enqueues SMS approver alerts. |
+| `POST` | `/api/v1/projects/[id]/transitions/sign` | `FACULTY`, `HEI_ADMIN`, `INDUSTRY_PARTNER`, `GOVT_OFFICIAL` | Cryptographic dual-signature stage gate verification engine. |
 
-### Notification Endpoints
-- **`GET /api/v1/notifications/mock-sms`**
-  - **Query Params**: `limit` (default 50), `search`, `recipientId`.
-  - **Response**: Formatted mock SMS log records with recipient name, phone, title, message text, and gateway metadata.
+### Bilateral MoU & Legal Endpoints
+| Method | Endpoint | Authorized Roles | Purpose |
+|---|---|---|---|
+| `POST` | `/api/v1/projects/[id]/mou` | Verified HEI Personnel, Linked Industry Partner | Drafts structured MoU (`MOU-SIH26-XXXX`, IP split, statutory compliance clause). |
+| `GET` | `/api/v1/projects/[id]/mou` | All Authenticated Roles | Lists drafted and executed MoUs for project. |
+| `POST` | `/api/v1/projects/[id]/mou/[mouId]/acknowledge` | Authorized HEI Lead, Linked Industry Partner | Bilateral acknowledgment (`MUTUALLY_ACKNOWLEDGED`), sets `fundingStatus = CSR_PLEDGED`. |
+
+### Off-Platform CSR Milestone Ledger Endpoints
+| Method | Endpoint | Authorized Roles | Purpose |
+|---|---|---|---|
+| `POST` | `/api/v1/projects/[id]/csr-ledger` | Verified Industry Partner, Affiliated HEI | Records off-platform bank disbursement (NEFT/RTGS/Cheque). Rejects in-platform payment tokens. |
+| `GET` | `/api/v1/projects/[id]/csr-ledger` | All Authenticated Roles | Returns CSR disbursement ledger and financial KPIs (pledged, disbursed, verified, pending). |
+| `PATCH`| `/api/v1/projects/[id]/csr-ledger/[entryId]/verify` | `INSTITUTION_ADMIN`, `GOVT_OFFICIAL`, `SUPER_ADMIN` | Recipient institution verifies bank tranche, updating `fundingStatus = CSR_FUNDED`. Senders receive 403. |
 
 ---
 
-## 5. UI Pages Reference
+## 5. UI Workspace Pages Reference
 
 | Route | Target Audience | Key Capabilities |
 |---|---|---|
-| `/hei/dashboard` | HEI Admins, Faculty, Researchers | AISHE trust badge, visual capacity utilization gauge (`activeProjects / maxCapacity`), overload warning badge (`-0.45 Penalty Active`), incoming matched challenges with 4-card **Score Breakdown** (`Cosine`, `Geo Boost`, `Capacity Penalty`, `Final Score`), and "Claim Challenge → Start PoC" action. |
-| `/hei/profile` | HEI Admins, Super Admins | Interactive capability editor for domains, faculty research focus, lab equipment chips, capacity limit slider (1–50), and real-time toast confirmation when BullMQ re-embedding is queued. |
-| `/admin/import` | Govt Officials, Super Admins | Drag-and-drop CSV/JSON bulk importer, downloadable `sample_hei_bulk_import.csv` template button, live ingestion state, and row-by-row report table. |
-| `/admin/mock-sms` | Govt Officials, Admins, Demo Visitors | Live inspector for simulated SMS notifications dispatched by BullMQ with 5-second auto-refresh and search filtering. |
+| `/projects` | All Stakeholders | Directory of active research projects with multi-filter bar (Phase, Funding Status, Search), 4-stage micro-steppers, institution badges, and NEP 2020 credit previews. |
+| `/projects/[id]` | Faculty, Students, Industry Mentors, Govt Officials | Full collaborative PLM workspace with visual 4-phase stepper, live Dual-Signature approval card (displaying Academic and External tracks, SHA-256 snapshot hash, and contextual sign action), milestone submission drawer with S3 presigned upload, off-platform CSR ledger tab with compliance notice, NEP 2020 student credits tab, and MoU tab. |
+| `/projects/[id]/mou` | HEI Leadership, Industry CSR Executives, Legal Auditors | Formal printable MoU document layout with `@media print` CSS, AISHE/MCA credentials, IP allocation split, milestone deliverable schedule, non-custodial statutory compliance clause, and bilateral digital execution stamps with one-click print/PDF export. |
 
 ---
 
@@ -135,39 +153,36 @@ The background processing pipeline bridges the Next.js 15 App Router web applica
 # 1. Full Monorepo Vitest Suite
 pnpm -r test
 # Scope: 4 of 5 workspace packages
-# @sih/web:    91 passed (91 tests across 9 suites)
-# @sih/worker: 11 passed (11 tests across 1 suite)
-# @sih/db:      9 passed (9 tests across 1 suite)
-# @sih/shared:  6 passed (6 tests across 1 suite)
-# Total TypeScript Tests: 117 passed (0 failures)
+# @sih/web:    130 passed (130 tests across 12 suites)
+# @sih/worker:  11 passed (11 tests across 1 suite)
+# @sih/db:       9 passed (9 tests across 1 suite)
+# @sih/shared:   6 passed (6 tests across 1 suite)
+# Total TypeScript Tests: 156 passed (0 failures)
 
 # 2. AI Engine Pytest Suite
 services/ai-engine/.venv/bin/pytest -v
 # Total Python Pytest Tests: 21 passed (0 failures)
 
-# Grand Total: 138 passing tests monorepo-wide (0 failures)
+# Grand Total: 177 passing tests monorepo-wide (0 failures)
 
 # 3. Next.js Production Build
 pnpm --filter @sih/web build
-# Output: Compiled successfully in 3.2s
-# 30 routes statically/dynamically optimized with 0 type errors
-
-# 4. End-to-End Worker Pipeline Verification
-pnpm test:pipeline
-# Result: Challenge intake -> BullMQ challenge.process -> FastAPI AI Engine -> BullMQ notify.sms -> PostgreSQL notification_logs
-# Turnaround Duration: 308ms (< 5.0s requirement)
+# Output: Compiled successfully in 3.5s
+# 32 routes statically/dynamically optimized with 0 type errors
+# Route breakdown:
+# ○ /projects             (5.27 kB)
+# ƒ /projects/[id]        (10.3 kB)
+# ƒ /projects/[id]/mou    (6.04 kB)
 ```
 
 ---
 
-## 7. Instructions for Phase 6 Execution
+## 7. Instructions for Phase 7 Execution
 
-When starting Phase 6 (Project Lifecycle Management & Dual-Signature Incubation Workflow):
-1. **MoU Dual-Signature Engine**:
-   - Implement `/api/v1/mous/sign` allowing verified HEI Admins and Industry/Govt Partners to execute cryptographic dual-signature MoUs locking project funding.
-2. **PLM 4-Phase State Machine**:
-   - Wire the formal transition lifecycle: `POC` → `PROTOTYPING` → `FIELD_TEST` → `IP_TECH_TRANSFER` using `@sih/shared`'s `canTransitionPhase()`.
-3. **Atomic Capacity Synchronization**:
-   - Atomically increment `institutions.active_projects` when a PoC is claimed/approved.
-   - Atomically decrement `institutions.active_projects` when a project completes (`IP_TECH_TRANSFER`) or archives.
-   - Verify that changes dynamically update the overload penalty and matchmaking rankings in real time.
+When starting Phase 7 (Geospatial Intelligence, PostGIS District Dashboard & Spatial Analytics):
+1. **Interactive Geospatial Dashboard (`/analytics/map`)**:
+   - Utilize existing PostgreSQL PostGIS extensions (`ST_DWithin`, `ST_Centroid`, `ST_AsGeoJSON`) to render Jharkhand district boundaries and challenge clusters.
+2. **Spatial Density & Capability Aggregation**:
+   - Wire `packages/db/src/spatial.ts` functions (`getChallengesWithinRadius`, `aggregateChallengeDensityByDistrict`) into public geo-analytics endpoints.
+3. **Cross-District Collaboration Matching**:
+   - Surface unaddressed rural civic challenges overlaid with nearest capable HEI clusters to optimize geographic innovation distribution.

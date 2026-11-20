@@ -13,6 +13,7 @@ describe("Role-Aware AppShell Navigation Access Suite", () => {
 
     expect(labels).toContain("Dashboard");
     expect(labels).toContain("Challenges");
+    expect(labels).toContain("Projects");
     expect(labels).not.toContain("Admin Console");
     expect(labels).not.toContain("HEI Portal");
     expect(labels).not.toContain("Industry Hub");
@@ -28,6 +29,7 @@ describe("Role-Aware AppShell Navigation Access Suite", () => {
     expect(instLabels).toContain("Dashboard");
     expect(instLabels).toContain("HEI Portal");
     expect(instLabels).toContain("Challenges");
+    expect(instLabels).toContain("Projects");
     expect(instLabels).toContain("Verify Org");
     expect(instLabels).toContain("Mock SMS Logs");
     expect(instLabels).not.toContain("Admin Console");
@@ -43,6 +45,7 @@ describe("Role-Aware AppShell Navigation Access Suite", () => {
     expect(labels).toContain("Dashboard");
     expect(labels).toContain("Industry Hub");
     expect(labels).toContain("Challenges");
+    expect(labels).toContain("Projects");
     expect(labels).toContain("Verify Org");
     expect(labels).not.toContain("HEI Portal");
     expect(labels).not.toContain("Admin Console");
@@ -56,6 +59,7 @@ describe("Role-Aware AppShell Navigation Access Suite", () => {
     expect(labels).toContain("HEI Portal");
     expect(labels).toContain("Industry Hub");
     expect(labels).toContain("Challenges");
+    expect(labels).toContain("Projects");
     expect(labels).toContain("Verify Org");
     expect(labels).toContain("Admin Console");
     expect(labels).toContain("Bulk Import");
@@ -68,6 +72,7 @@ describe("Role-Aware AppShell Navigation Access Suite", () => {
 
     expect(labels).toContain("Dashboard");
     expect(labels).toContain("Challenges");
+    expect(labels).toContain("Projects");
     expect(labels).toContain("Bulk Import");
     expect(labels).toContain("Mock SMS Logs");
     expect(labels).not.toContain("HEI Portal");

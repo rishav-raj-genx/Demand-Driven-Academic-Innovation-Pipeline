@@ -17,6 +17,7 @@ import {
   Users,
   FileSpreadsheet,
   MessageSquare,
+  FolderGit2,
 } from "lucide-react";
 
 export interface ShellUser {
@@ -92,6 +93,24 @@ export const NAV_ITEMS: NavItem[] = [
       "INSTITUTION_ADMIN",
       "HEI_ADMIN",
       "INDUSTRY_PARTNER",
+      "SUPER_ADMIN",
+    ],
+  },
+  {
+    label: "Projects",
+    href: "/projects",
+    icon: FolderGit2,
+    roles: [
+      "STUDENT",
+      "CITIZEN",
+      "GOVT_OFFICIAL",
+      "FACULTY",
+      "RESEARCHER",
+      "INSTITUTION_ADMIN",
+      "HEI_ADMIN",
+      "INDUSTRY_PARTNER",
+      "INVESTOR",
+      "CSR_PARTNER",
       "SUPER_ADMIN",
     ],
   },

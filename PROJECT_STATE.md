@@ -1,7 +1,7 @@
 # PROJECT_STATE: SIH26043 - Demand-Driven Academic Innovation Pipeline
 
 **Team:** The Unknowns  
-**Status:** Phase 5 & 6 Complete (BullMQ Multi-Queue Worker Daemon, HEI Capability Portal, Bulk Importer, Live Mock SMS Inspector & Phase 5 Handoff Report)  
+**Status:** Phase 6 Complete (Collaborative PLM Workspace UI, Visual 4-Stage Stepper, Live Dual-Signature Panel, Off-Platform CSR Ledger & Formal Printable MoU View)  
 **Last Updated:** 2026-11-20
 
 ---
@@ -963,6 +963,185 @@ Result:
   - `pnpm -r test`: 117/117 TypeScript tests passed across 4 packages.
   - `services/ai-engine`: 21/21 Python pytest tests passed.
   - Grand total: **138 tests passing** monorepo-wide.
+
+---
+
+## 11. Phase 6 Progress & Completed Milestones
+
+### Milestone 6.1: Project Lifecycle Creation, Team Member Assignment & Phase Milestone Submission APIs
+- [x] Implemented `POST /api/v1/projects` (`apps/web/src/app/api/v1/projects/route.ts`):
+  - **Authentication & RBAC**: Guarded by `requireAuth` and `requireRoles` (verified `INSTITUTION_ADMIN`, `FACULTY`, or `SUPER_ADMIN`).
+  - **Capability Match Verification**: Requires an existing `CapabilityMatch` between the challenge and the user's institution.
+  - **Atomic Prisma Transaction**:
+    1. Verifies `institution.activeProjects < institution.maxCapacity` (returns `409 CAPACITY_EXCEEDED` if overloaded).
+    2. Prevents double-claiming: checks `challenge.status !== "IN_PROJECT"` and guarantees no existing project is linked to the challenge (returns `409 CHALLENGE_ALREADY_CLAIMED`).
+    3. Creates `Project` with initial `currentPhase = POC`, sets dates and optional budget.
+    4. Updates `CapabilityMatch.status = "ACCEPTED"`.
+    5. Updates `Challenge.status = "IN_PROJECT"`.
+    6. Atomically increments `Institution.activeProjects` by 1.
+    7. Adds creator as `FACULTY_LEAD` in `project_members`.
+    8. Records immutable platform `AuditLog` (`PROJECT_CREATED`).
+- [x] Implemented `POST /api/v1/projects/[id]/partner` (`apps/web/src/app/api/v1/projects/[id]/partner/route.ts`):
+  - Allows verified `INDUSTRY_PARTNER` or `CSR_PARTNER` users to join active projects.
+  - Allows affiliated `INSTITUTION_ADMIN` or `FACULTY` to invite/assign verified industry partners.
+  - Enforces organization verification (`403 ORG_NOT_VERIFIED` on unverified partners).
+  - Updates `Project.industryPartnerId`, adds partner representative to `project_members` with role `"INDUSTRY_PARTNER"`, logs `AuditLog`, and dispatches mock SMS notification to Faculty Lead.
+- [x] Implemented `POST /api/v1/projects/[id]/members` (`apps/web/src/app/api/v1/projects/[id]/members/route.ts`):
+  - Allows Faculty Lead or HEI Admin to assign student team members.
+  - Enforces institutional affiliation: rejects students enrolled in other institutions with `400 STUDENT_NOT_AFFILIATED`.
+  - Upserts `project_members` with role `"STUDENT"` and records `AuditLog` (`PROJECT_MEMBERS_ADDED`).
+- [x] Implemented `POST /api/v1/projects/[id]/milestones` (`apps/web/src/app/api/v1/projects/[id]/milestones/route.ts`):
+  - Ingests deliverables for `project.currentPhase` (`title`, `summary`, `artifactKeys` uploaded to S3).
+  - Computes deterministic SHA-256 `contentHash`:
+    `sha256(JSON.stringify({ projectId, phase, title, summary, artifactKeys }))`
+  - Upserts `Milestone` record with status `SUBMITTED_FOR_APPROVAL` and order index.
+  - Gathers required approvers (Industry Partner representatives and HEI Faculty/Admins) and enqueues mock SMS notifications via BullMQ `notify.sms`.
+  - Records `AuditLog` (`MILESTONE_SUBMITTED`).
+- [x] Implemented `GET /api/v1/projects` and `GET /api/v1/projects/[id]`:
+  - `GET /api/v1/projects`: Paginated directory listing with filtering by phase, institution, partner, or search, returning active milestones, counts, and NEP credit summaries.
+  - `GET /api/v1/projects/[id]`: Full project state inspector returning institution, partner, challenge, members, ordered milestones with nested dual-signature approvals, MoUs, CSR ledger entries, and deterministic `nepCreditSummary`.
+- [x] Implemented NEP 2020 Credit Engine (`apps/web/src/lib/projects/nep.ts`):
+  - Computes experiential learning credits aligned with NEP 2020 mandates:
+    - `POC`: 2 credits
+    - `PROTOTYPING`: 4 credits
+    - `FIELD_TEST`: 6 credits
+    - `IP_TECH_TRANSFER`: 8 credits
+    - Max: 20 credits
+  - Dynamically calculates `earnedCredits`, `eligibleCredits`, phase completion status, and beneficiary counts for students and faculty.
+- [x] Enforced Phase Transition Scope Boundary:
+  - Gated direct `PATCH /api/v1/projects/[id]` updates with `405 METHOD_NOT_ALLOWED` (ensuring phase transitions strictly occur via the Prompt 6.2 dual-signature engine).
+- [x] Built Integration Test Suite (`apps/web/src/app/api/v1/projects/projects-integration.test.ts`):
+  - 14 passing tests validating auth gates, capability match requirement, atomic project creation and capacity increment, double-claim prevention (409), overloaded institution rejection (409), partner joining, cross-HEI student isolation, deterministic 64-char SHA-256 milestone hashing, full state inspection, and PATCH rejection.
+- [x] Monorepo Build & Test Verification:
+  - `pnpm --filter @sih/web build`: 31 routes compiled cleanly in 3.4s with 0 errors.
+  - `pnpm --filter @sih/web test`: 105 passed across 10 test suites.
+  - `pnpm -r test`: 131 passed across all packages with 0 failures.
+
+### Milestone 6.2: Dual-Signature PLM Approval Engine (`POST /api/v1/projects/[id]/transitions/sign`)
+- [x] Implemented Strict Cryptographic Dual-Signature Engine (`apps/web/src/app/api/v1/projects/[id]/transitions/sign/route.ts`):
+  - **Zod Validation**: Validates `{ milestoneId, decision: 'APPROVED' | 'REJECTED', remarks }`.
+  - **Track-Based Authorization**:
+    - **Academic Track (`ACADEMIC_APPROVER`)**: Verified `INSTITUTION_ADMIN` or assigned `FACULTY` lead of the project's institution (requiring verified institution status).
+    - **External/Industry Track (`EXTERNAL_APPROVER`)**: Verified `INDUSTRY_PARTNER` or `CSR_PARTNER` linked to the project (requiring verified partner organization status) OR verified `GOVT_OFFICIAL`.
+    - **Hard Role Rejection**: Students and Citizens immediately receive `403 FORBIDDEN`.
+  - **Atomic Prisma Transaction (`$transaction`)**:
+    - Milestone phase verification (`milestone.phase === project.currentPhase`) and status verification (`milestone.status === "SUBMITTED_FOR_APPROVAL"`).
+    - Cryptographic content hash enforcement (`snapshotHash = milestone.contentHash`).
+    - Unique signature constraint checking: rejects duplicate signer attempts (`409 DUPLICATE_SIGNER`) and duplicate track signatures (`409 TRACK_ALREADY_SIGNED`).
+    - Stale snapshot hash invalidation: if milestone deliverable is resubmitted or tampered, older signatures with stale snapshot hashes are disregarded for transition evaluation.
+    - **Rejection Flow**: If `decision === "REJECTED"`, milestone is marked `REJECTED`, project remains in current phase, audit trail is recorded, and team is notified.
+    - **Approved Flow**:
+      - If count == 1: remains in current phase, returns `{ transitioned: false, signaturesCount: 1, awaitingTrack }`, and dispatches mock SMS alert to the pending approver track.
+      - If count == 2 (both Academic and External tracks verified with matching `snapshotHash`):
+        - Marks milestone `APPROVED` and `isCompleted = true`.
+        - Atomically advances `project.currentPhase` via `PLM_TRANSITIONS[currentPhase]` (e.g. `POC` → `PROTOTYPING`).
+        - Awards phase NEP 2020 experiential learning credits to student members in `project_members`.
+        - If advancing into `IP_TECH_TRANSFER`, atomically decrements `Institution.activeProjects` (releasing capacity slot) and logs `PROJECT_COMPLETED_CAPACITY_RELEASED`.
+        - Records platform `AuditLog` (`PHASE_TRANSITION_COMPLETED`) and dispatches mock SMS phase transition announcements.
+- [x] Built Integration Test Suite (`apps/web/src/app/api/v1/projects/[id]/transitions/sign/transitions-sign-integration.test.ts`):
+  - 12 comprehensive passing tests proving:
+    1. Unauthenticated request rejected (401).
+    2. Student role rejected (403 FORBIDDEN).
+    3. Citizen role rejected (403 FORBIDDEN).
+    4. Unverified industry partner rejected (403 ORG_NOT_VERIFIED).
+    5. Non-linked industry partner rejected (403).
+    6. Single signature retains project in `POC`, awaits External co-signature, and dispatches SMS alert.
+    7. Same user duplicate signing prevented (409 DUPLICATE_SIGNER).
+    8. Same track duplicate signing prevented (409 TRACK_ALREADY_SIGNED).
+    9. Milestone deliverable tampering/resubmission invalidates stale snapshot hashes.
+    10. Dual signatures (Academic Lead + Verified Industry Partner) atomically advance `POC → PROTOTYPING` and award NEP credits.
+    11. Milestone rejection flow keeps project in current phase and records audit trail.
+    12. Advancing into `IP_TECH_TRANSFER` decrements `Institution.activeProjects` (freeing capacity) and logs completion audit.
+- [x] Final Build & Test Verification:
+  - `pnpm --filter @sih/web build`: 31 routes compiled in 3.2s with 0 errors.
+  - `pnpm --filter @sih/web test`: 117 passed across 11 test suites.
+  - `pnpm -r test`: 143 passed across all packages with 0 failures.
+
+### Milestone 6.3: Bilateral MoU Generation, Bilateral Acknowledgment & Off-Platform CSR Milestone Ledger
+- [x] Schema & Database Evolution (`packages/db/prisma/schema.prisma` & migration `20261120084500_mou_csr_ledger_compliance`):
+  - Added `VERIFIED` status to `CsrEntryStatus` enum.
+  - Added `fundingStatus String? @default("UNFUNDED") @map("funding_status")` to `Project`.
+  - Extended `MoU` model with `mouNumber`, `pledgedAmountInr`, `ipOwnershipSplit` (JSON), `milestoneSchedule` (JSON), `complianceClause`, `heiAcknowledgedAt`, `heiAcknowledgedBy`, `industryAcknowledgedAt`, `industryAcknowledgedBy`.
+  - Extended `CsrLedgerEntry` model with `milestoneId`, `paymentMode`, `externalReferenceNo`, `receiptKey`, `verifiedAt`, `verifiedBy`.
+  - Linked `Milestone` relation to `CsrLedgerEntry`.
+- [x] Implemented Structured Bilateral MoU Drafting API (`POST /api/v1/projects/[id]/mou` & `GET /api/v1/projects/[id]/mou`):
+  - **Auth & RBAC**: Only authorized HEI personnel (`INSTITUTION_ADMIN`, `FACULTY`), linked `INDUSTRY_PARTNER` or `SUPER_ADMIN`. Students and Citizens receive `403 FORBIDDEN`.
+  - **Verification Gate**: Both HEI and Industry Partner must be officially verified (`403 ORG_NOT_VERIFIED`).
+  - **Zod Validation**: Validates `pledgedAmountInr > 0`, IP ownership split totaling exactly 100% (`heiPercentage + industryPercentage === 100`), structured milestone schedule array.
+  - **Collision-Resistant MoU Identifier**: Generates unique `MOU-SIH26-XXXX`.
+  - **Mandatory Legal Compliance Clause**:
+    `"All CSR disbursements occur exclusively via external banking channels outside the platform. The platform does not process, hold, or escrow funds. Financial execution must be conducted directly between the Industry/CSR Partner and the Higher Education Institution through official banking channels (NEFT/RTGS/Cheque/Direct CSR Grant)."`
+  - **Audit Trail**: Logs `MOU_CREATED` in `AuditLog`.
+  - **List Endpoint**: `GET /api/v1/projects/[id]/mou` returns all structured project MoUs ordered by creation date.
+- [x] Implemented Bilateral MoU Acknowledgment Workflow (`POST /api/v1/projects/[id]/mou/[mouId]/acknowledge`):
+  - First signatory acknowledgment records timestamp and user ID (`heiAcknowledgedAt` or `industryAcknowledgedAt`), updates status to `HEI_ACKNOWLEDGED` or `INDUSTRY_ACKNOWLEDGED`, and enqueues mock SMS notification to the awaiting counterparty.
+  - Second signatory reciprocal acknowledgment updates status to `MUTUALLY_ACKNOWLEDGED`, sets `signedDate = now()`, atomically updates `Project.fundingStatus = "CSR_PLEDGED"` (and syncs `project.budget` if unset), logs `MOU_ACKNOWLEDGED`, and dispatches mock SMS announcements to both parties.
+- [x] Implemented Off-Platform CSR Milestone Ledger API (`POST /api/v1/projects/[id]/csr-ledger` & `GET /api/v1/projects/[id]/csr-ledger`):
+  - **Strict In-Platform Payment Gate Prohibitions**: Proactively intercepts and rejects payment processor payloads (Razorpay, Stripe, card numbers, CVVs, UPI VPAs, payment intents, or escrow tokens) with `400 IN_PLATFORM_PAYMENT_PROHIBITED`, strictly honoring statutory and platform non-custodial constraints.
+  - **Legitimate External Disbursement Recording**: Allows verified Industry Partner to record off-platform bank disbursements (`amountInr`, `paymentMode: EXTERNAL_NEFT | RTGS | CHEQUE | CSR_GRANT`, `externalReferenceNo`, `milestoneId`, optional S3 `receiptKey`).
+  - Creates entry with initial status `SUBMITTED`, records `AuditLog` (`CSR_DISBURSEMENT_RECORDED`), and enqueues mock SMS notification to HEI leadership.
+  - **Financial Summary Calculation (`GET`)**: Aggregates `totalDisbursedInr`, `totalVerifiedInr`, `pendingVerificationInr`, and `entriesCount`.
+- [x] Implemented CSR Tranche Verification Gate (`PATCH /api/v1/projects/[id]/csr-ledger/[entryId]/verify`):
+  - **Sender Self-Verification Block**: Industry Partners, Students, and Citizens are rejected with `403 FORBIDDEN` (fund senders cannot verify their own disbursements).
+  - **Authorized Verifier**: Only recipient institution leadership (`INSTITUTION_ADMIN`, `FACULTY`), `GOVT_OFFICIAL`, or `SUPER_ADMIN` can verify bank tranches.
+  - **Atomic Transaction**:
+    1. Updates `CsrLedgerEntry.status = "VERIFIED"`, records `verifiedAt` and `verifiedBy`.
+    2. Atomically updates `Project.fundingStatus = "CSR_FUNDED"`.
+    3. Records platform `AuditLog` (`CSR_DISBURSEMENT_VERIFIED`).
+    4. Dispatches mock SMS notification to Industry Partner confirming verified bank deposit.
+  - Prevents double-verification attempts with `409 ALREADY_VERIFIED`.
+- [x] Extended Project Full State Inspector (`GET /api/v1/projects/[id]`):
+  - Exposes `fundingStatus` along with nested `mous` and `csrLedgerEntries`.
+- [x] Built Integration Test Suite (`apps/web/src/app/api/v1/projects/[id]/csr-ledger/mou-csr-integration.test.ts`):
+  - 13 comprehensive passing tests proving:
+    1. MoU validation rejects IP split != 100% (400).
+    2. Unauthorized student rejected from drafting MoU (403).
+    3. Structured bilateral MoU drafted with `MOU-SIH26-XXXX` and mandatory compliance clause (201).
+    4. Project MoUs listed via GET (200).
+    5. HEI acknowledgment recorded as first track (HEI_ACKNOWLEDGED).
+    6. Industry Partner acknowledgment triggers mutual execution and updates project to `CSR_PLEDGED` (200).
+    7. In-platform payment gateway execution fields (Razorpay/Stripe) strictly rejected (400 IN_PLATFORM_PAYMENT_PROHIBITED).
+    8. UPI VPAs in payload strictly rejected (400 IN_PLATFORM_PAYMENT_PROHIBITED).
+    9. Verified Industry Partner logs legitimate off-platform CSR disbursement with external UTR (201).
+    10. CSR financial ledger summary correctly computes disbursed, verified, and pending totals (200).
+    11. Industry Partner and Student forbidden from self-verifying external tranches (403).
+    12. Recipient HEI Admin verifies bank deposit, marking entry VERIFIED and project CSR_FUNDED (200).
+    13. Duplicate tranche verification rejected (409 ALREADY_VERIFIED).
+- [x] Final Build & Test Verification:
+  - `pnpm --filter @sih/web build`: 31 routes compiled in 2.3s with 0 errors.
+  - `pnpm --filter @sih/web test`: 130 passed across 12 test suites.
+  - `pnpm -r test`: **156 passed across all 4 packages** with 0 failures (Web: 130, Worker: 11, DB: 9, Shared: 6).
+
+### Milestone 6.4: Collaborative PLM Workspace UI, Visual Stepper, Live Dual-Sig Panel & Printable MoU Document
+- [x] Implemented Active Projects Directory (`apps/web/src/app/projects/page.tsx`):
+  - Filterable by Phase (`PoC`, `Prototyping`, `Field Test`, `IP & Tech Transfer`), Funding Status (`CSR_FUNDED`, `CSR_PLEDGED`, `INDUSTRY_FUNDED`, `UNFUNDED`), and search keywords.
+  - Displays project cards with 4-stage micro-steppers, institution badges, tier ratings, assigned partner details, and NEP 2020 credit indicators.
+- [x] Implemented Collaborative PLM Project Workspace (`apps/web/src/app/projects/[id]/page.tsx`):
+  - **4-Phase Visual Stepper**: Progress across PoC, Prototyping, Field Test, and IP & Tech Transfer with active pulse rings, checkmarks, NEP credit points (+2, +4, +6, +8), and slot release indicators.
+  - **Live Dual-Signature Approval Panel**: Shows SHA-256 snapshot fingerprint (`contentHash`), Track 1 (Academic Track: Faculty Lead) status, Track 2 (External Track: Industry/Govt) status, and contextual "Sign & Approve Transition" action for eligible roles.
+  - **Milestone Submission Drawer / Modal**: Uploads PoC/prototype artifacts directly to S3 via presigned URLs (`purpose: "milestone_artifact"`), computes deterministic SHA-256 hash, and enqueues approver notifications.
+  - **Off-Platform CSR Ledger Tab**: Displays statutory compliance banner (*"Off-platform CSR settlement — zero in-platform fund transfers"*), financial KPI summary cards, external UTR ledger table, Industry disbursement recording modal, and HEI Admin tranche verification button.
+  - **NEP 2020 Student Credits Tab**: Displays multidisciplinary team roster and credit breakdown across phases.
+  - **Bilateral MoUs Tab**: Lists project MoUs with IP split and direct navigation to the formal printable document.
+- [x] Implemented Formal Printable MoU Layout (`apps/web/src/app/projects/[id]/mou/page.tsx`):
+  - Formal Government of India / AICTE SIH legal document styled for `@media print` and screen viewing.
+  - One-click `window.print()` trigger button ("Print / Save PDF").
+  - Identifies parties with AISHE code and MCA/CIN corporate registration.
+  - Formal IP ownership split clauses (e.g. `HEI: 70%, Industry: 30%`), milestone deliverable schedule, and mandatory statutory non-custodial compliance clause.
+  - Bilateral digital execution stamps with timestamp and signer UUID.
+  - Interactive "Acknowledge & Sign MoU" action for counterparty verification.
+- [x] Updated Navigation & AppShell:
+  - Added "Projects" (`/projects`) to `NAV_ITEMS` in `apps/web/src/components/AppShell.tsx` for all authenticated roles.
+  - Updated `apps/web/src/components/AppShell.test.ts` (6/6 tests passing).
+- [x] Completed Phase 6 Handoff Report in `HANDOFF.md`.
+- [x] Production Build & Test Verification:
+  - `pnpm --filter @sih/web build`: 32 routes compiled cleanly in 3.5s with 0 errors.
+  - `pnpm --filter @sih/web test`: 130 passed across 12 test suites.
+  - `pnpm -r test`: **156 passed across all 4 packages** with 0 failures.
+
+
+
+
 
 
 
