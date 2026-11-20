@@ -7,7 +7,7 @@ const __dirname = path.dirname(__filename);
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  transpilePackages: ["@sih/shared"],
+  transpilePackages: ["@sih/shared", "@sih/db"],
   outputFileTracingRoot: path.resolve(__dirname, "../../"),
 };
 

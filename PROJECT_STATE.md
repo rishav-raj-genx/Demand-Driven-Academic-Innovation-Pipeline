@@ -1,7 +1,7 @@
 # PROJECT_STATE: SIH26043 - Demand-Driven Academic Innovation Pipeline
 
 **Team:** The Unknowns  
-**Status:** Phase 0 Complete (Monorepo, Infrastructure, Application Shells & AI Engine Initialized)  
+**Status:** Phase 1 In Progress (Milestone 1.2: PostGIS Geometry Helpers & Audit Logging Complete)  
 **Last Updated:** 2026-11-20
 
 ---
@@ -68,7 +68,20 @@ SIH26043/
 │       └── init-extensions.sql                # Entrypoint script installing postgis and vector
 ├── packages/
 │   ├── db/
-│   │   └── package.json                       # @sih/db package shell
+│   │   ├── package.json                       # @sih/db package configuration & exports
+│   │   ├── tsconfig.json                      # Database package TypeScript configuration
+│   │   ├── vitest.config.ts                   # Vitest configuration for database integration tests
+│   │   ├── prisma/
+│   │   │   ├── schema.prisma                  # Prisma schema with 15 domain models, PostGIS, pgvector
+│   │   │   └── migrations/
+│   │   │       └── 20261120043438_init_schema/
+│   │   │           └── migration.sql          # Versioned SQL migration with HNSW, GIST & checks
+│   │   ├── src/
+│   │   │   ├── audit.ts                       # Parameterized audit log helper (recordAuditLog)
+│   │   │   ├── index.ts                       # Singleton Prisma client export & barrel exports
+│   │   │   └── spatial.ts                     # PostGIS parameterized geometry helpers & density aggregation
+│   │   └── tests/
+│   │       └── spatial.test.ts                # Integration test suite for PostGIS helpers & audit logging
 │   └── shared/
 │       ├── package.json                       # @sih/shared package configuration
 │       ├── tsconfig.json                      # Shared library build config (declaration, sourceMaps)
@@ -234,10 +247,118 @@ Observed Output:
 {"level":30,"pid":89248,"name":"sih-worker","msg":"Redis health verification succeeded"}
 ```
 
+### F. Database Migration & Schema Verification (`@sih/db`)
+Commands:
+```bash
+# 1. Execute Prisma migrate dev
+pnpm --filter @sih/db prisma migrate dev --name init_schema
+
+# 2. Inspect applied tables and indexes via psql
+docker exec -i sih26043-postgres psql -U postgres -d sih26043_db -c "\dt; \di"
+
+# 3. Query custom spatial and vector indexes
+docker exec -i sih26043-postgres psql -U postgres -d sih26043_db -c "SELECT indexname, indexdef FROM pg_indexes WHERE indexname LIKE 'idx_%';"
+
+# 4. Confirm non-negative check constraint
+docker exec -i sih26043-postgres psql -U postgres -d sih26043_db -c "SELECT conname, pg_get_constraintdef(oid) FROM pg_constraint WHERE conname = 'chk_institutions_active_projects_non_negative';"
+
+# 5. Verify Next.js web application integration with singleton Prisma client
+pnpm --filter @sih/web exec node --input-type=module -e "import { prisma } from '@sih/db'; async function test() { const res = await prisma.\$queryRaw\`SELECT 1 as connected\`; console.log('Prisma query success from web context:', res); await prisma.\$disconnect(); } test();"
+```
+Observed Outputs:
+```text
+# 1. Prisma Migrate Dev
+Applying migration `20261120043438_init_schema`
+The following migration(s) have been applied:
+migrations/
+  └─ 20261120043438_init_schema/
+    └─ migration.sql
+Your database is now in sync with your schema.
+✔ Generated Prisma Client (v6.19.3)
+
+# 2. Custom Spatial GIST and pgvector HNSW Indexes
+            indexname            |                                                        indexdef                                                         
+---------------------------------+-------------------------------------------------------------------------------------------------------------------------
+ idx_districts_boundary_gist     | CREATE INDEX idx_districts_boundary_gist ON public.districts USING gist (boundary)
+ idx_districts_centroid_gist     | CREATE INDEX idx_districts_centroid_gist ON public.districts USING gist (centroid)
+ idx_institutions_location_gist  | CREATE INDEX idx_institutions_location_gist ON public.institutions USING gist (location)
+ idx_institutions_embedding_hnsw | CREATE INDEX idx_institutions_embedding_hnsw ON public.institutions USING hnsw (capability_embedding vector_cosine_ops)
+ idx_challenges_location_gist    | CREATE INDEX idx_challenges_location_gist ON public.challenges USING gist (location)
+ idx_challenges_embedding_hnsw   | CREATE INDEX idx_challenges_embedding_hnsw ON public.challenges USING hnsw (embedding vector_cosine_ops)
+
+# 3. Non-Negative Active Projects Constraint
+                    conname                    |      pg_get_constraintdef      
+-----------------------------------------------+--------------------------------
+ chk_institutions_active_projects_non_negative | CHECK ((active_projects >= 0))
+
+# 4. Web Import Probe
+prisma:query SELECT 1 as connected
+Prisma query success from web context: [ { connected: 1 } ]
+```
+
+### G. PostGIS Spatial Helpers & Audit Logging Integration Tests
+Command:
+```bash
+pnpm --filter @sih/db test
+```
+Observed Output:
+```text
+ ✓ tests/spatial.test.ts (9 tests) 76ms
+   ✓ PostGIS Spatial Helpers & Audit Logging Integration Suite > Spatial Point Writing & Reading > should set and retrieve a challenge location using ST_SetSRID(ST_MakePoint) 2ms
+   ✓ PostGIS Spatial Helpers & Audit Logging Integration Suite > Spatial Point Writing & Reading > should set and retrieve an institution location using ST_SetSRID(ST_MakePoint) 1ms
+   ✓ PostGIS Spatial Helpers & Audit Logging Integration Suite > Spatial Point Writing & Reading > should reject out-of-range latitude or longitude 1ms
+   ✓ PostGIS Spatial Helpers & Audit Logging Integration Suite > Spatial Point Writing & Reading > should reject non-existent entity IDs 1ms
+   ✓ PostGIS Spatial Helpers & Audit Logging Integration Suite > Spatial District Containment & Nearest-Centroid Fallback > should find district by coordinates using ST_Contains when point is inside boundary 1ms
+   ✓ PostGIS Spatial Helpers & Audit Logging Integration Suite > Spatial District Containment & Nearest-Centroid Fallback > should fallback to nearest centroid (<->) when point is outside all district boundaries 2ms
+   ✓ PostGIS Spatial Helpers & Audit Logging Integration Suite > Audit Log Helper > should record parameterized audit log without SQL injection risk 3ms
+   ✓ PostGIS Spatial Helpers & Audit Logging Integration Suite > Audit Log Helper > should reject empty action or entityType 0ms
+   ✓ PostGIS Spatial Helpers & Audit Logging Integration Suite > District Innovation Density Aggregation > should return district innovation density aggregation including spatial counts 2ms
+
+ Test Files  1 passed (1)
+      Tests  9 passed (9)
+   Duration  347ms
+```
+
 ---
 
-## 6. Phase 1 Readiness Status
-Phase 0 initialization is complete. All prerequisites are in place for Phase 1:
-1. **Database Modeling**: PostgreSQL container is online with PostGIS and pgvector ready for Prisma schema definitions in `packages/db`.
-2. **Type Coherence**: `UserRole`, `InstitutionTier`, `ProjectPhase`, and API schemas in `@sih/shared` are ready for entity generation.
-3. **Services Ready**: Web, Worker, and AI Engine services have verified health, configuration, and secure inter-op channels.
+## 6. Phase 1 Progress & Completed Milestones
+
+### Milestone 1.1: Database Schema & PostGIS/pgvector Migrations
+- [x] Initialized `@sih/db` package (`packages/db`) exporting singleton `prisma` client (`@sih/db`) and generated TypeScript types.
+- [x] Implemented complete Prisma schema (`packages/db/prisma/schema.prisma`) defining all 15 domain models:
+  - `User`: Roles, status, authentication references, institution/industry affiliations.
+  - `RefreshToken`: Multi-device token management with revocation flags and expiry timestamps.
+  - `District`: Administrative regions with PostGIS `boundary` (MultiPolygon, 4326) and `centroid` (Point, 4326).
+  - `Institution`: Higher education institutions across Tiers 1-3 with PostGIS `location` (Point, 4326), `capability_embedding` (vector(384)), capacity limits, and non-negative active project constraint.
+  - `IndustryPartner`: Corporate partners with CIN, sector, and district links.
+  - `Challenge`: Industry demands with nullable unique `clientIdempotencyKey`, PostGIS `location` (Point, 4326), and semantic `embedding` (vector(384)).
+  - `CapabilityMatch`: AI-scored matching with unique constraint `(challengeId, institutionId)`.
+  - `Project`: Stage-gated innovation lifecycle projects with phase tracking.
+  - `ProjectMember`: Multi-stakeholder project memberships with unique `(projectId, userId)`.
+  - `Milestone`: Deliverable milestones mapped to PLM phases.
+  - `PhaseApproval`: Dual-signature approval tracking enforcing unique `(milestoneId, signerId)` AND unique `(milestoneId, signerRole)`.
+  - `MoU`: Formal contractual records linked to projects.
+  - `CsrLedgerEntry`: CSR funding allocation, disbursement tracking, and financial compliance records.
+  - `AuditLog`: Immutable platform action logging with JSON metadata.
+  - `NotificationLog`: User notification logs with read status flags.
+- [x] Generated versioned SQL migration (`20261120043438_init_schema/migration.sql`) establishing:
+  - PostGIS & pgvector extensions (`CREATE EXTENSION IF NOT EXISTS`).
+  - All 15 domain model tables, enums, primary keys, and foreign keys.
+  - HNSW vector indexes: `idx_challenges_embedding_hnsw` and `idx_institutions_embedding_hnsw` using `vector_cosine_ops`.
+  - Spatial GIST indexes: `districts.boundary`, `districts.centroid`, `institutions.location`, `challenges.location`.
+  - Table check constraint: `chk_institutions_active_projects_non_negative` ensuring `active_projects >= 0`.
+- [x] Wired `@sih/db` into `apps/web` (`package.json`, `next.config.ts`), verified zero typecheck errors across all workspace packages (`pnpm -r typecheck`), and confirmed successful Next.js production build.
+
+### Milestone 1.2: PostGIS Geometry Helpers & Audit Logging
+- [x] Implemented `packages/db/src/spatial.ts` with strict SQL-injection-safe parameterized `Prisma.sql` templates:
+  - `setChallengeLocation(challengeId, lat, lng)`: Writes 4326 Point geometry via `ST_SetSRID(ST_MakePoint($lng, $lat), 4326)` with coordinate bounds validation.
+  - `setInstitutionLocation(institutionId, lat, lng)`: Writes 4326 Point geometry for institutions.
+  - `getChallengeLocation(challengeId)` / `getInstitutionLocation(institutionId)`: Extracts `{ lat, lng }` coordinates via `ST_Y` / `ST_X`.
+  - `findDistrictByCoordinates(lat, lng)`: Dual-stage lookup with primary `ST_Contains(boundary, ST_SetSRID(ST_MakePoint($lng, $lat), 4326))` and fallback to nearest-centroid distance operator (`centroid <-> point`).
+  - `getDistrictInnovationDensity()`: Aggregates active challenges, matched projects, funded prototypes, and patents counts per district with GeoJSON boundary & centroid.
+- [x] Implemented `packages/db/src/audit.ts`:
+  - `recordAuditLog({ actorId, action, entityType, entityId, metadata, ipAddress, userAgent })` providing clean parameterized audit trails with input validation.
+- [x] Implemented full integration test suite in `packages/db/tests/spatial.test.ts` running against PostgreSQL container:
+  - 9 passing tests covering point insertion, spatial containment, nearest-neighbor fallback, audit log creation, and density aggregation.
+- [x] Re-exported all spatial and audit utilities from `packages/db/src/index.ts`.
+- [x] Verified zero SQL interpolation warnings, zero TypeScript errors across all monorepo packages, and clean Next.js 15 build.
