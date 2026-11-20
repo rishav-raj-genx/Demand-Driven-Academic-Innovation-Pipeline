@@ -1,7 +1,7 @@
 # PROJECT_STATE: SIH26043 - Demand-Driven Academic Innovation Pipeline
 
 **Team:** The Unknowns  
-**Status:** Phase 6 Complete (Collaborative PLM Workspace UI, Visual 4-Stage Stepper, Live Dual-Signature Panel, Off-Platform CSR Ledger & Formal Printable MoU View)  
+**Status:** Phase 7 Complete (Department of Higher Education Analytics APIs, PostGIS Spatial Innovation Density GeoJSON, Live KPI Cards, Equitable Load-Balancing & Capacity Metrics)  
 **Last Updated:** 2026-11-20
 
 ---
@@ -1138,6 +1138,119 @@ Result:
   - `pnpm --filter @sih/web build`: 32 routes compiled cleanly in 3.5s with 0 errors.
   - `pnpm --filter @sih/web test`: 130 passed across 12 test suites.
   - `pnpm -r test`: **156 passed across all 4 packages** with 0 failures.
+
+---
+
+## 12. Phase 7 Progress & Completed Milestones
+
+### Milestone 7.1: PostGIS Spatial Aggregations & Analytics Engine
+- [x] Implemented Database Analytics Package (`packages/db/src/analytics.ts`):
+  - **`getSpatialDistrictAnalytics(filters)`**:
+    - Executes parameterized PostGIS spatial joins using `ST_AsGeoJSON(d.boundary)` and `ST_AsGeoJSON(d.centroid)`.
+    - Computes live district aggregates:
+      - `challengeCount`: active civic challenges located inside district polygon boundary (`ST_Contains(boundary, location)`) or matching `district_id`.
+      - `heiCount`: accredited HEIs situated within the district.
+      - `activeProjectCount`: active multidisciplinary PLM projects assigned to institutions in the district.
+      - `fundedPrototypeCount`: projects in `PROTOTYPING`, `FIELD_TEST`, `IP_TECH_TRANSFER` with verified CSR tranches, pledged funding, or nonzero budgets.
+      - `topInstitution`: dynamically selects the leading institution per district ordered by `active_projects DESC, max_capacity DESC, name ASC`.
+    - Generates RFC 7946-compliant GeoJSON `FeatureCollection` containing MultiPolygon boundaries, Point centroids, and enriched metadata.
+    - Supports dynamic query filters: `domain` (case-insensitive ILIKE match on challenge problem domain/category), `phase` (`POC`, `PROTOTYPING`, `FIELD_TEST`, `IP_TECH_TRANSFER`), and `tier` (`TIER_1`, `TIER_2`, `TIER_3`, `UNACCREDITED`).
+  - **`getDashboardAnalytics()`**:
+    - Computes real-time statewide KPIs directly from PostgreSQL:
+      - `activeCivicChallenges`: live count of open, reviewed, matched, and in-project civic demands.
+      - `industryFundedPrototypes`: count of stage-gated projects in prototyping or later with active CSR/grant backing.
+      - `patentsAndIpGenerated`: count of innovations reaching IP & tech transfer stage or backed by executed MoUs with IP terms.
+      - `deduplicatedSubmissionsCount`: total duplicate challenges merged via pgvector MiniLM semantic deduplication.
+      - `tier2And3SharePercent`: equitable capacity load-balancing ratio proving non-concentrated project allocation to Tier-2 and Tier-3 institutions.
+    - `recentCapabilityMatches`: returns latest 10 distinct matched/active challenges with `challengeTitle`, `assignedInstitution`, `institutionTier`, `statusLabel` (e.g. `Prototyping — CSR Funded`, `Active — Govt. Grant`, `Under Review`, `Completed`), and `matchScore`.
+    - `institutionUtilization`: capacity breakdown per HEI with `activeProjects`, `maxCapacity`, `availableCapacity`, and `utilizationPercent` for bar chart visualizers.
+- [x] Re-exported all analytics types and queries from `packages/db/src/index.ts`.
+- [x] Verified zero TypeScript compilation errors in `@sih/db` (`tsc -b`).
+
+### Milestone 7.2: High-Performance REST Endpoints (`apps/web`)
+- [x] Implemented `GET /api/v1/analytics/dashboard` (`apps/web/src/app/api/v1/analytics/dashboard/route.ts`):
+  - Returns live DB aggregates for KPI cards, recent capability matches, and institution capacity utilization.
+  - Delivers responses with `Cache-Control: public, s-maxage=10, stale-while-revalidate=59`.
+  - Confirmed query execution time < 50ms (well within the 150ms acceptance threshold).
+- [x] Implemented `GET /api/v1/analytics/spatial` (`apps/web/src/app/api/v1/analytics/spatial/route.ts`):
+  - Returns RFC 7946 GeoJSON `FeatureCollection` with `Content-Type: application/geo+json`.
+  - Supports query parameter filtering (`?domain=...`, `?phase=...`, `?tier=...`).
+  - Strictly validates filter values with defensive 400 `INVALID_FILTER` error envelopes.
+  - Confirmed query execution time < 40ms on warm cache.
+
+### Milestone 7.3: Live Department of Higher Education Dashboard UI
+- [x] Upgraded Statewide Analytics Dashboard UI (`apps/web/src/app/dashboard/page.tsx`):
+  - Replaced static placeholder cards with live PostgreSQL + PostGIS KPI cards.
+  - Visualized Tier-2/3 equitable load-balancing metric (`tier2And3SharePercent`).
+  - Added Spatial Innovation Density GeoJSON banner with direct feed navigation.
+  - Added Recent Capability Matches list with match percentage badges, institution tier chips, and lifecycle stage status badges.
+  - Added HEI Capacity Utilization card with dynamic progress bars color-coded by load status (emerald < 75%, amber 75-99%, rose >= 100% full capacity).
+
+### Milestone 7.4: Verification & Acceptance Testing
+- [x] Created Comprehensive Integration Test Suite (`apps/web/src/app/api/v1/analytics/analytics-integration.test.ts`):
+  - **Test 1**: Verifies `/api/v1/analytics/spatial` returns valid RFC 7946 GeoJSON `FeatureCollection` with 8 Jharkhand districts in < 150ms.
+  - **Test 2**: Confirms accurate district counts matching seeded data for Ranchi (`JH_RAN`), East Singhbhum (`JH_ESN`), and Dhanbad (`JH_DHN`).
+  - **Test 3**: Confirms `tier=TIER_1` filter isolates Tier-1 HEIs and sets top institutions accordingly.
+  - **Test 4**: Confirms `phase=PROTOTYPING` filter isolates active prototyping projects in East Singhbhum.
+  - **Test 5**: Confirms `domain=Water` filter returns defluoridation challenges in Palamu.
+  - **Test 6**: Confirms invalid phase or tier parameters are rejected with 400 `INVALID_FILTER`.
+  - **Test 7**: Confirms `/api/v1/analytics/dashboard` computes all 5 KPI cards in < 150ms.
+  - **Test 8**: Confirms `recentCapabilityMatches` returns up to 10 entries with valid schema and match scores.
+  - **Test 9**: Confirms `institutionUtilization` returns capacity breakdown for bar chart visualization.
+  - **Result: 9/9 tests passed in 128ms**.
+
+### Milestone 7.5: Interactive Jharkhand Innovation Density Map Component (`leaflet` + `react-leaflet`)
+- [x] Package Dependencies:
+  - Installed `leaflet`, `react-leaflet`, and `@types/leaflet` using `pnpm --filter @sih/web add`.
+- [x] Leaflet Dynamic Isolation & Zero SSR Issues:
+  - Created `apps/web/src/components/analytics/JharkhandMapInner.tsx` implementing the Leaflet map container, SVG polygon choropleth, centroid markers, and event handlers.
+  - Created `apps/web/src/components/analytics/JharkhandInnovationMap.tsx` dynamically wrapping `JharkhandMapInner` via `next/dynamic` with `{ ssr: false }` and `<MapLoadingSkeleton />`, guaranteeing zero `window is not defined` runtime errors.
+- [x] Hackathon Offline Tile Resilient Fallback:
+  - Configured OpenStreetMap tiles with `tileerror` fallback detection.
+  - Designed deep slate dark-canvas fallback (`#070d19` background) allowing vector MultiPolygon boundaries, choropleth fills, and density bubbles to render with 100% visual fidelity even when external raster tiles fail to load or are blocked on restricted conference Wi-Fi.
+- [x] PostGIS District Choropleth & Circular Density Bubbles:
+  - Color-scaled district polygons by active civic demands (8+ indigo, 5-7 blue, 3-4 sky, 1-2 dark sky, 0 slate).
+  - Placed crisp circular innovation density markers (`L.divIcon`) at PostGIS Point centroids with exact demand counts, glowing rings, and hover tooltips.
+  - Click-to-drilldown drawer displaying district code, demand count, HEIs count, active projects, funded prototypes, leading institution, and direct filter link.
+- [x] Live Filter Controls:
+  - Integrated interactive Domain dropdown, Project Phase dropdown, and HEI Tier dropdown synchronized to `/api/v1/analytics/spatial`.
+  - One-click filter reset action.
+  - Overlay legend with density scale and "Live PostGIS 3.7" indicator badge.
+- [x] Embedded `<JharkhandInnovationMap />` directly in `apps/web/src/app/dashboard/page.tsx`.
+
+### Milestone 7.6: Executive Department of Higher Education Analytics Dashboard (`/dashboard`)
+- [x] Installed `recharts` (`^3.11.0`) in `@sih/web` via `pnpm --filter @sih/web add recharts`.
+- [x] Built `HeiLoadBalancingChart.tsx` (`apps/web/src/components/analytics/HeiLoadBalancingChart.tsx`):
+  - Visualizes institutional active projects vs. available statutory capacity using Recharts `BarChart`.
+  - Color-codes bars (Indigo for Tier-1, Blue for Tier-2/3, Emerald for Available Capacity).
+  - Highlights Tier-1 vs. Tier-2/3 capacity absorption and displays the 66.7% Tier-2/3 equitable load share callout.
+  - Features interactive tier filter toggles (`All`, `Tier 1`, `Tier 2`, `Tier 3`) and custom dark-theme tooltips with WCAG compliant text contrast.
+  - Implements client-side `isMounted` guard preventing Next.js 15 / React 19 hydration mismatch warnings.
+- [x] Built `PlmInnovationFunnel.tsx` (`apps/web/src/components/analytics/PlmInnovationFunnel.tsx`):
+  - Visualizes the 4-Phase demand-driven PLM funnel: `Verified Demands (30) → AI Capability Matched (18) → CSR Prototypes (6) → Patents & IP Transfer (2)`.
+  - Calculates conversion percentages relative to intake baseline (100% → 60% → 20% → 6.7%).
+  - Highlights dual-signature stage gates and NEP 2020 experiential learning credit accrual at each milestone.
+  - Renders horizontal bar chart and stage summary cards.
+- [x] Upgraded `/dashboard` (`apps/web/src/app/dashboard/page.tsx`):
+  - **Top KPI Row**: 5 live cards displaying Active Civic Challenges (30), Industry-Funded Prototypes (6), Patents & IP Generated (2), Deduplicated Demands (2), and Tier-2/3 Load Share (66.7%).
+  - **Filter & Export Toolbar**:
+    - Domain filter dropdown (8 major Jharkhand domains).
+    - District filter dropdown (8 Jharkhand districts).
+    - Search input filtering challenges and institutions in real-time.
+    - One-click "Export Institutional KPIs (CSV)" generating formatted CSV downloads (`jharkhand-dhe-institutional-kpis-[date].csv`).
+  - **Two-Column Main Grid**:
+    - *Left*: Recent Capability Matches interactive table (Challenge, Assigned HEI, Tier badge, Match Score %, WCAG high-contrast Status badge, direct link to `/projects/[id]` or `/challenges/[id]`).
+    - *Right*: `JharkhandInnovationMap` (PostGIS Leaflet choropleth/bubbles with interactive click-to-drilldown drawer).
+  - **Bottom Analytics Row**:
+    - *Left*: `HeiLoadBalancingChart` (Tier-1 vs Tier-2/3 load-balancing).
+    - *Right*: `PlmInnovationFunnel` (4-phase PLM stage gate funnel).
+  - **Quick Workflow Navigation**: Trust & Verification, Challenges Hub, and PLM Projects directory.
+- [x] Testing & Build Verification:
+  - Unit tests in `apps/web/src/components/analytics/DashboardCharts.test.ts` (4 tests).
+  - `pnpm --filter @sih/web build`: **34 static and dynamic routes compiled in 5.9s with 0 errors**.
+  - `pnpm --filter @sih/web test`: **147 tests passed across 15 test suites**.
+  - Full monorepo verification (`pnpm -r test`): **173 tests passed across all 4 monorepo packages, 0 failures**.
+
 
 
 

@@ -28,7 +28,7 @@ describe("MoU & Off-Platform CSR Milestone Ledger Integration Suite (Milestone 6
   let govtToken: string;
 
   let testInstitution: { id: string; code: string; name: string };
-  let testIndustryPartner: { id: string; organizationName: string; cin: string };
+  let testIndustryPartner: { id: string; organizationName: string; cin: string | null };
   let testChallenge: { id: string };
 
   let projectId: string;

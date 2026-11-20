@@ -20,4 +20,5 @@ if (process.env.NODE_ENV !== "production") {
 export * from "@prisma/client";
 export * from "./spatial.js";
 export * from "./audit.js";
+export * from "./analytics.js";
 

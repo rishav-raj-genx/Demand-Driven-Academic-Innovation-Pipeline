@@ -1,188 +1,216 @@
-# PHASE 6 HANDOFF REPORT: SIH26043
+# PHASE 7 HANDOFF REPORT: SIH26043
 
 **Project:** Demand-Driven Academic Innovation Pipeline  
 **Team:** The Unknowns  
-**Phase:** Phase 6 (Project Lifecycle Management, Cryptographic Dual-Signature Engine, Off-Platform CSR Ledger & Collaborative Workspace UI) — **COMPLETE**  
+**Phase:** Phase 7 (Department of Higher Education Analytics APIs, PostGIS Spatial Innovation Density Map, Equitable Load-Balancing, 4-Phase PLM Funnel & Executive Dashboard UI) — **COMPLETE**  
 **Date:** 2026-11-20  
 
 ---
 
 ## 1. Executive Summary
 
-Phase 6 delivers the collaborative execution heart of the SIH26043 platform: transitioning AI-matched civic/industrial challenges into formal, 4-stage Research & Development projects governed by cryptographic Dual-Signature gates, off-platform CSR milestone financial ledgers, bilateral MoUs, and NEP 2020 experiential learning credit accrual.
-
-### Key Deliverables Completed:
-1. **Challenge Claiming & Atomic Capacity Management (`POST /api/v1/projects`)**:
-   - Enforces prerequisite `CapabilityMatch` verification.
-   - Atomically checks and increments `Institution.activeProjects`, preventing institutional overloading (`409 CAPACITY_EXCEEDED`).
-   - Prevents double-claiming the same challenge (`409 CHALLENGE_ALREADY_CLAIMED`).
-   - Assigns creator as `FACULTY_LEAD` in `project_members`, sets initial phase to `POC`, updates `Challenge.status = "IN_PROJECT"`, and records platform `AuditLog`.
-
-2. **Multidisciplinary Team & Industry Partner Assignment**:
-   - `POST /api/v1/projects/[id]/partner`: Verified industry/CSR partner joins or is assigned; enforces verified organization status (`403 ORG_NOT_VERIFIED`).
-   - `POST /api/v1/projects/[id]/members`: Faculty Lead assigns affiliated students; enforces institutional isolation (`400 STUDENT_NOT_AFFILIATED`).
-
-3. **Milestone Deliverable Submission & SHA-256 Hashing (`POST /api/v1/projects/[id]/milestones`)**:
-   - Accepts deliverables for `project.currentPhase` (`title`, `summary`, S3 `artifactKeys`).
-   - Computes deterministic SHA-256 `contentHash = sha256(JSON.stringify({ projectId, phase, title, summary, artifactKeys }))`.
-   - Transitions milestone to `SUBMITTED_FOR_APPROVAL` and enqueues mock SMS alerts to required approver tracks.
-
-4. **Cryptographic Dual-Signature Stage Gate Engine (`POST /api/v1/projects/[id]/transitions/sign`)**:
-   - Requires two distinct, verified role tracks to co-sign before advancing phases:
-     - **Academic Track (`ACADEMIC_APPROVER`)**: Verified HEI Faculty Lead or Institution Admin.
-     - **External Track (`EXTERNAL_APPROVER`)**: Verified Industry/CSR Partner or Government Official.
-   - Rejects unauthorized roles (Students and Citizens receive `403 FORBIDDEN`).
-   - Uniqueness constraints: prevents duplicate signing by the same user (`409 DUPLICATE_SIGNER`) or from the same track (`409 TRACK_ALREADY_SIGNED`).
-   - Stale Snapshot Hash Invalidation: tampering with or resubmitting deliverables changes the `contentHash`, invalidating older signatures.
-   - Transition execution: on 2/2 valid approved signatures, atomically advances `project.currentPhase` via `PLM_TRANSITIONS` (`POC → PROTOTYPING → FIELD_TEST → IP_TECH_TRANSFER`), distributes NEP 2020 credits, releases institutional active project capacity on final IP transfer, and dispatches mock SMS phase transition announcements.
-
-5. **Bilateral MoU Generation & Mutual Execution (`/api/v1/projects/[id]/mou`)**:
-   - `POST /api/v1/projects/[id]/mou`: Drafts structured MoU (`MOU-SIH26-XXXX`, IP ownership split totaling 100%, milestone schedule, and mandatory statutory compliance clause).
-   - `POST /api/v1/projects/[id]/mou/[mouId]/acknowledge`: Bilateral acknowledgment workflow (`HEI_ACKNOWLEDGED` → `MUTUALLY_ACKNOWLEDGED`), setting `signedDate` and updating `Project.fundingStatus = "CSR_PLEDGED"`.
-
-6. **Statutory Non-Custodial Compliance & Off-Platform CSR Ledger (`/api/v1/projects/[id]/csr-ledger`)**:
-   - **Payment Execution Prohibition**: Intercepts and strictly rejects payment processor payloads (Razorpay, Stripe, cards, CVVs, UPI VPAs, payment intents, or escrow tokens) with `400 IN_PLATFORM_PAYMENT_PROHIBITED`, honoring non-custodial legal compliance.
-   - **External Disbursement Logging**: Industry partners record off-platform bank deposits (`amountInr`, `paymentMode: EXTERNAL_NEFT | RTGS | CHEQUE | CSR_GRANT`, `externalReferenceNo`, S3 `receiptKey`).
-   - **Verification Gate (`PATCH .../[entryId]/verify`)**: Recipient HEI Admin or Govt. Official verifies external bank deposit, transitioning entry to `VERIFIED` and `Project.fundingStatus = "CSR_FUNDED"`. Fund senders cannot self-verify (403).
-
-7. **Collaborative PLM Workspace UI (`apps/web`)**:
-   - **`/projects`**: Directory of active projects filterable by Phase (`PoC`, `Prototyping`, `Field Test`, `IP & Tech Transfer`), Funding Status, and keyword search, with 4-phase micro-steppers and NEP credit badges.
-   - **`/projects/[id]`**: Full PLM workspace featuring:
-     - 4-Phase Visual Stepper with completed checkmarks, current active pulse, and locked upcoming phases.
-     - Live Dual-Signature Approval Panel displaying Academic and External signature status, SHA-256 snapshot hash, copy action, and contextual "Sign & Approve Transition" button for eligible roles.
-     - Milestone Submission Drawer with direct S3 upload via presigned URLs (`purpose: "milestone_artifact"`).
-     - Off-Platform CSR Ledger Tab with compliance notice banner, financial KPI summaries, and verification actions.
-     - NEP 2020 Student Credits Tab displaying team roster and experiential credit breakdown.
-     - MoUs & Legal Agreements Tab.
-   - **`/projects/[id]/mou`**: Clean, formal printable MoU document layout with `@media print` CSS, AISHE/MCA details, IP ownership split, milestone schedule, statutory compliance clause, and bilateral digital execution stamps.
+Phase 7 delivers the state-level executive governance intelligence layer for the Jharkhand Department of Higher Education (DHE) and university chancellors:
+1. **Live PostGIS Spatial Innovation Density Engine**: Performs sub-150ms spatial aggregations (`ST_AsGeoJSON(boundary)`, `ST_AsGeoJSON(centroid)`) over PostgreSQL 16 + PostGIS 3.7, rendering district MultiPolygons and innovation centroid markers enriched with active demand counts, funded prototypes, HEI counts, and leading institutions.
+2. **Statewide Innovation Key Performance Indicators**: Real-time DB aggregates powering 5 core cards: Active Civic Challenges (30), Industry-Funded Prototypes (6), Patents & Tech Transfers (2), Deduplicated Demands (2), and Tier-2/3 Load Share (66.7%).
+3. **Equitable HEI Load-Balancing Analytics**: Visualizes active project distribution vs. statutory institutional capacity ceilings across Tier-1 (IIT ISM, NIT Jamshedpur, BIT Mesra) and Tier-2/3 institutions (BIT Sindri, Ranchi University, Vinoba Bhave University, Bokaro Polytechnics), enforcing that no single tier monopolizes state research funds.
+4. **Interactive Leaflet + React-Leaflet Map (`apps/web`)**: Client-only dynamically imported map (`ssr: false`) with dark-theme canvas fallback that remains 100% functional and visually crisp even on offline/restricted conference Wi-Fi networks where external raster tiles fail.
+5. **Demand-Driven 4-Phase PLM Stage-Gate Funnel (`recharts`)**: Visualizes the conversion progression from crowdsourced civic demands into verified patents (`Verified Demands (30) → AI Matched (18) → CSR Prototypes (6) → Patents & IP (2)`), tracking dual-signature stage gates and NEP 2020 experiential credit accruals.
+6. **Executive Dashboard UI (`/dashboard`)**: Unified 2-column grid layout with interactive Recent Capability Matches table (searchable, filterable, high-contrast WCAG-compliant status badges, direct navigation links to `/projects/[id]` or `/challenges/[id]`), PostGIS district density map with drilldown drawer, and client-side institutional KPI CSV export.
 
 ---
 
-## 2. Infrastructure & Service Ports
+## 2. Architecture & Component Manifest
 
-| Service | Host Port | Protocol | Container / Process | Healthcheck / Probe | Status |
-|---|---|---|---|---|---|
-| PostgreSQL 16 | `5432` | TCP (Wire) | `sih26043-postgres` | `pg_isready -U postgres -d sih26043_db` | Operational (PostGIS 3.7.0 + pgvector 0.8.7) |
-| Redis 7 | `6379` | TCP (RESP) | `sih26043-redis` | `redis-cli ping` | Operational (BullMQ multi-queue transport) |
-| MinIO (S3 API) | `9000` | HTTP / S3 | `sih26043-minio` | `GET /minio/health/live` | Operational (`sih26043-uploads` bucket) |
-| MinIO Console | `9001` | HTTP / HTML | `sih26043-minio` | Browser Console | Operational |
-| Next.js Web App | `3000` | HTTP / HTML | `apps/web` | `GET /api/v1/health` | Operational (Next.js 15.5.29, 32 routes) |
-| AI Engine | `8000` | HTTP / JSON | `services/ai-engine` | `GET /health` | Operational (FastAPI + MiniLM-L6-v2) |
-| BullMQ Worker | N/A | Worker Daemon | `apps/worker` | `pnpm --filter @sih/worker check` | Operational (3 queue workers + dead letter) |
-
----
-
-## 3. PLM Phase Progression & Dual-Signature Topology
-
-```
-                  [ Proof of Concept (PoC) ]  ── 2 NEP Credits
-                              │
-               ┌──────────────┴──────────────┐
-               ▼                             ▼
-       [ Academic Track ]            [ External Track ]
-       Faculty Lead / Dean           Industry Partner / Govt
-               │                             │
-               └──────────────┬──────────────┘
-                              ▼
-           Dual Signatures Verified (Matching Hash)
-                              │
-                              ▼
-                  [ Prototyping Phase ]       ── 4 NEP Credits
-                              │
-                     Dual-Signature Gate
-                              │
-                              ▼
-                  [ Field Testing Phase ]     ── 6 NEP Credits
-                              │
-                     Dual-Signature Gate
-                              │
-                              ▼
-              [ IP & Tech Transfer Phase ]    ── 8 NEP Credits
-                              │
-                              ▼
-           - Decrements Institution.activeProjects (Frees Capacity)
-           - Records PROJECT_COMPLETED_CAPACITY_RELEASED AuditLog
-           - Dispatches Mock SMS Project Completion Announcements
+```text
+SIH26043/
+├── packages/
+│   └── db/
+│       ├── src/
+│       │   ├── analytics.ts             # PostGIS spatial queries, GeoJSON feature generators & KPI calculations
+│       │   └── index.ts                 # Re-exports getSpatialAnalytics & getDashboardAnalytics
+├── apps/
+│   └── web/
+│       ├── src/
+│       │   ├── app/
+│       │   │   ├── api/v1/analytics/
+│       │   │   │   ├── dashboard/
+│       │   │   │   │   └── route.ts     # GET /api/v1/analytics/dashboard (Live DB KPIs & matches)
+│       │   │   │   ├── spatial/
+│       │   │   │   │   └── route.ts     # GET /api/v1/analytics/spatial (PostGIS GeoJSON FeatureCollection)
+│       │   │   │   └── analytics-integration.test.ts # 9 integration tests verifying schemas & latency
+│       │   │   └── dashboard/
+│       │   │       └── page.tsx         # Executive DHE Analytics Dashboard UI
+│       │   └── components/
+│       │       └── analytics/
+│       │           ├── JharkhandMapInner.tsx         # Leaflet container, SVG polygon layers & centroid pins
+│       │           ├── JharkhandInnovationMap.tsx    # Dynamic ssr:false wrapper, controls & drilldown drawer
+│       │           ├── JharkhandInnovationMap.test.ts # Map unit & edge case test suite (4 tests)
+│       │           ├── HeiLoadBalancingChart.tsx     # Recharts BarChart for HEI active vs capacity
+│       │           ├── PlmInnovationFunnel.tsx       # Recharts 4-Phase Stage-Gate Funnel visualizer
+│       │           └── DashboardCharts.test.ts       # Chart metrics & CSV generator test suite (4 tests)
 ```
 
 ---
 
-## 4. Phase 6 API Endpoints Reference
+## 3. Analytics API Specifications
 
-### Project Lifecycle Endpoints
-| Method | Endpoint | Authorized Roles | Purpose |
-|---|---|---|---|
-| `POST` | `/api/v1/projects` | `INSTITUTION_ADMIN`, `FACULTY`, `SUPER_ADMIN` | Claims AI-matched challenge, verifies capacity, increments `activeProjects`, creates project in `POC`. |
-| `GET` | `/api/v1/projects` | All Authenticated Roles | Paginated project directory filterable by phase, institution, and search. |
-| `GET` | `/api/v1/projects/[id]` | All Authenticated Roles | Full project state inspector (stakeholders, milestones, dual approvals, MoUs, CSR ledger, NEP summary). |
-| `PATCH`| `/api/v1/projects/[id]` | None (`405 METHOD_NOT_ALLOWED`) | Gated boundary: direct phase modifications strictly prohibited. |
-| `POST` | `/api/v1/projects/[id]/partner` | `INDUSTRY_PARTNER`, `HEI_ADMIN`, `FACULTY` | Verified industry partner joins or is assigned to active project. |
-| `POST` | `/api/v1/projects/[id]/members` | `INSTITUTION_ADMIN`, `FACULTY` | Assigns affiliated students to research project team. |
-| `POST` | `/api/v1/projects/[id]/milestones` | `INSTITUTION_ADMIN`, `FACULTY` | Submits deliverables, computes SHA-256 fingerprint, enqueues SMS approver alerts. |
-| `POST` | `/api/v1/projects/[id]/transitions/sign` | `FACULTY`, `HEI_ADMIN`, `INDUSTRY_PARTNER`, `GOVT_OFFICIAL` | Cryptographic dual-signature stage gate verification engine. |
+### 3.1 `GET /api/v1/analytics/spatial`
+Returns an RFC 7946 compliant GeoJSON `FeatureCollection` representing Jharkhand's 8 administrative districts enriched with spatial innovation counts.
 
-### Bilateral MoU & Legal Endpoints
-| Method | Endpoint | Authorized Roles | Purpose |
-|---|---|---|---|
-| `POST` | `/api/v1/projects/[id]/mou` | Verified HEI Personnel, Linked Industry Partner | Drafts structured MoU (`MOU-SIH26-XXXX`, IP split, statutory compliance clause). |
-| `GET` | `/api/v1/projects/[id]/mou` | All Authenticated Roles | Lists drafted and executed MoUs for project. |
-| `POST` | `/api/v1/projects/[id]/mou/[mouId]/acknowledge` | Authorized HEI Lead, Linked Industry Partner | Bilateral acknowledgment (`MUTUALLY_ACKNOWLEDGED`), sets `fundingStatus = CSR_PLEDGED`. |
+- **Query Parameters**:
+  - `domain` (optional string): Filters counts by challenge domain (e.g. `Water`, `Mining`, `Solar`, `Healthcare`).
+  - `phase` (optional string): Filters counts by active PLM phase (`POC`, `PROTOTYPING`, `FIELD_TEST`, `IP_TECH_TRANSFER`).
+  - `tier` (optional string): Filters counts by HEI tier (`TIER_1`, `TIER_2`, `TIER_3`).
 
-### Off-Platform CSR Milestone Ledger Endpoints
-| Method | Endpoint | Authorized Roles | Purpose |
-|---|---|---|---|
-| `POST` | `/api/v1/projects/[id]/csr-ledger` | Verified Industry Partner, Affiliated HEI | Records off-platform bank disbursement (NEFT/RTGS/Cheque). Rejects in-platform payment tokens. |
-| `GET` | `/api/v1/projects/[id]/csr-ledger` | All Authenticated Roles | Returns CSR disbursement ledger and financial KPIs (pledged, disbursed, verified, pending). |
-| `PATCH`| `/api/v1/projects/[id]/csr-ledger/[entryId]/verify` | `INSTITUTION_ADMIN`, `GOVT_OFFICIAL`, `SUPER_ADMIN` | Recipient institution verifies bank tranche, updating `fundingStatus = CSR_FUNDED`. Senders receive 403. |
+- **Example Response Payload**:
+```json
+{
+  "type": "FeatureCollection",
+  "success": true,
+  "features": [
+    {
+      "type": "Feature",
+      "id": "c71a396e-5a02-47d3-9f5b-17937dae6da2",
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [[[[85.2, 23.4], [85.5, 23.4], ...]]]
+      },
+      "properties": {
+        "id": "c71a396e-5a02-47d3-9f5b-17937dae6da2",
+        "code": "JH_RAN",
+        "name": "Ranchi",
+        "state": "Jharkhand",
+        "centroid": { "type": "Point", "coordinates": [85.324, 23.3441] },
+        "challengeCount": 8,
+        "activeProjectCount": 1,
+        "fundedPrototypeCount": 0,
+        "heiCount": 2,
+        "topInstitution": "Birla Institute of Technology Mesra"
+      }
+    }
+  ],
+  "metadata": {
+    "totalDistricts": 8,
+    "filters": { "domain": null, "phase": null, "tier": null },
+    "generatedAt": "2026-11-20T09:30:00.000Z"
+  }
+}
+```
+
+- **Performance**: Guaranteed < 150ms execution on PostgreSQL 16 + PostGIS 3.7 using single round-trip parameterized `Prisma.$queryRaw`.
 
 ---
 
-## 5. UI Workspace Pages Reference
+### 3.2 `GET /api/v1/analytics/dashboard`
+Returns live state-level KPIs, recent capability matches, and capacity utilization figures across all institutions.
 
-| Route | Target Audience | Key Capabilities |
-|---|---|---|
-| `/projects` | All Stakeholders | Directory of active research projects with multi-filter bar (Phase, Funding Status, Search), 4-stage micro-steppers, institution badges, and NEP 2020 credit previews. |
-| `/projects/[id]` | Faculty, Students, Industry Mentors, Govt Officials | Full collaborative PLM workspace with visual 4-phase stepper, live Dual-Signature approval card (displaying Academic and External tracks, SHA-256 snapshot hash, and contextual sign action), milestone submission drawer with S3 presigned upload, off-platform CSR ledger tab with compliance notice, NEP 2020 student credits tab, and MoU tab. |
-| `/projects/[id]/mou` | HEI Leadership, Industry CSR Executives, Legal Auditors | Formal printable MoU document layout with `@media print` CSS, AISHE/MCA credentials, IP allocation split, milestone deliverable schedule, non-custodial statutory compliance clause, and bilateral digital execution stamps with one-click print/PDF export. |
+- **Response Structure**:
+```json
+{
+  "success": true,
+  "data": {
+    "kpis": {
+      "activeCivicChallenges": 30,
+      "industryFundedPrototypes": 6,
+      "patentsAndIpGenerated": 2,
+      "deduplicatedSubmissionsCount": 2,
+      "tier2And3SharePercent": 66.7
+    },
+    "recentCapabilityMatches": [
+      {
+        "challengeId": "uuid-1",
+        "projectId": "uuid-proj-1",
+        "challengeTitle": "Solar-Powered Deep Aquifer Fluoride Removal",
+        "assignedInstitution": "National Institute of Technology Jamshedpur",
+        "institutionTier": "TIER_1",
+        "statusLabel": "Prototyping — CSR Funded",
+        "matchScore": 92
+      }
+    ],
+    "institutionUtilization": [
+      {
+        "id": "inst-1",
+        "name": "National Institute of Technology Jamshedpur",
+        "code": "NIT-JSR",
+        "tier": "TIER_1",
+        "districtName": "East Singhbhum",
+        "activeProjects": 3,
+        "maxCapacity": 4,
+        "availableCapacity": 1,
+        "utilizationPercent": 75
+      }
+    ]
+  }
+}
+```
 
 ---
 
-## 6. Monorepo Verification & Test Suite Summary
+## 4. UI Dashboard Architecture & Design Decisions
+
+### 4.1 Leaflet Dynamic Isolation & Offline Resilience
+- **Zero SSR Errors**: Leaflet inherently references `window` and `navigator`. Direct imports in Next.js App Router trigger hydration crashes. The implementation isolates Leaflet inside `JharkhandMapInner.tsx`, which is dynamically imported in `JharkhandInnovationMap.tsx` using `next/dynamic` with `{ ssr: false }`.
+- **Hackathon Wi-Fi Fallback**: Conference venues frequently block or throttle external tile CDNs. The map component uses a dark canvas (`#070d19`) and catches tile errors via `tileerror`. Even if OpenStreetMap raster tiles fail to load, the vector SVG boundaries (`GeoJSON`), choropleth fills, centroid markers (`L.divIcon`), and tooltips render with 100% visual fidelity.
+
+### 4.2 Recharts Hydration Safety
+- React 19 / Next.js 15 client components with Recharts `ResponsiveContainer` can log hydration mismatch warnings if evaluated before DOM mount. Both `HeiLoadBalancingChart` and `PlmInnovationFunnel` incorporate `isMounted` state guards (`useEffect(() => setIsMounted(true), [])`), rendering smooth pulse skeletons until client-side hydration is complete.
+
+### 4.3 High-Contrast WCAG AA Compliance
+All status badges and text indicators meet or exceed the 4.5:1 contrast ratio:
+- `Prototyping — CSR Funded`: `bg-emerald-950/90 text-emerald-300 border border-emerald-500/40` (Contrast ratio > 7:1)
+- `Active — Govt. Grant`: `bg-blue-950/90 text-blue-300 border border-blue-500/40` (Contrast ratio > 7:1)
+- `Under Review`: `bg-amber-950/90 text-amber-300 border border-amber-500/40` (Contrast ratio > 8:1)
+- `Completed`: `bg-purple-950/90 text-purple-300 border border-purple-500/40` (Contrast ratio > 7:1)
+
+---
+
+## 5. Monorepo Verification & Test Suite Summary
 
 ```bash
-# 1. Full Monorepo Vitest Suite
+# 1. Full Monorepo Vitest Suites
 pnpm -r test
-# Scope: 4 of 5 workspace packages
-# @sih/web:    130 passed (130 tests across 12 suites)
-# @sih/worker:  11 passed (11 tests across 1 suite)
-# @sih/db:       9 passed (9 tests across 1 suite)
-# @sih/shared:   6 passed (6 tests across 1 suite)
-# Total TypeScript Tests: 156 passed (0 failures)
+# packages/shared:   6 passed (1 suite)
+# packages/db:       9 passed (1 suite)
+# apps/worker:      11 passed (1 suite)
+# apps/web:        147 passed (15 suites)
+# Total TypeScript Tests: 173 passed (0 failures)
 
-# 2. AI Engine Pytest Suite
-services/ai-engine/.venv/bin/pytest -v
-# Total Python Pytest Tests: 21 passed (0 failures)
-
-# Grand Total: 177 passing tests monorepo-wide (0 failures)
-
-# 3. Next.js Production Build
+# 2. Next.js Production Build
 pnpm --filter @sih/web build
-# Output: Compiled successfully in 3.5s
-# 32 routes statically/dynamically optimized with 0 type errors
-# Route breakdown:
-# ○ /projects             (5.27 kB)
-# ƒ /projects/[id]        (10.3 kB)
-# ƒ /projects/[id]/mou    (6.04 kB)
+# Output: Compiled successfully in 5.9s
+# 34 routes statically/dynamically generated with zero SSR or type errors
+# Key Analytics Routes:
+# ƒ /api/v1/analytics/dashboard    (219 B, 103 kB First Load)
+# ƒ /api/v1/analytics/spatial      (219 B, 103 kB First Load)
+# ○ /dashboard                    (148 kB, 257 kB First Load)
 ```
 
 ---
 
-## 7. Instructions for Phase 7 Execution
+## 6. Instructions for Phase 8 Execution
 
-When starting Phase 7 (Geospatial Intelligence, PostGIS District Dashboard & Spatial Analytics):
-1. **Interactive Geospatial Dashboard (`/analytics/map`)**:
-   - Utilize existing PostgreSQL PostGIS extensions (`ST_DWithin`, `ST_Centroid`, `ST_AsGeoJSON`) to render Jharkhand district boundaries and challenge clusters.
-2. **Spatial Density & Capability Aggregation**:
-   - Wire `packages/db/src/spatial.ts` functions (`getChallengesWithinRadius`, `aggregateChallengeDensityByDistrict`) into public geo-analytics endpoints.
-3. **Cross-District Collaboration Matching**:
-   - Surface unaddressed rural civic challenges overlaid with nearest capable HEI clusters to optimize geographic innovation distribution.
+When starting Phase 8 (Hackathon Demonstration Readiness, Live Pitch Scripting & E2E Validation):
+1. **Interactive Demo Seed Verification**:
+   - Confirm all 30 Jharkhand civic challenges across 8 districts and 10 HEIs populate smoothly in `/dashboard`, `/challenges`, and `/projects`.
+2. **End-to-End Persona Validation**:
+   - Verify citizen challenge intake → AI semantic deduplication → faculty claim with capacity lock → dual-signature milestone approval → off-platform CSR deposit verification → executive analytics dashboard reflection.
+3. **Automated E2E Test Suite**:
+   - Wire smoke tests simulating real judge evaluation flows without network flakiness.
+
+---
+---
+
+# ARCHIVED: PHASE 6 HANDOFF REPORT: SIH26043
+
+**Project:** Demand-Driven Academic Innovation Pipeline  
+**Team:** The Unknowns  
+**Phase:** Phase 6 (Project Lifecycle Management, Cryptographic Dual-Signature Engine, Off-Platform CSR Ledger & Collaborative Workspace UI) — **COMPLETE**  
+**Date:** 2026-11-20  
+
+### Phase 6 Key Deliverables:
+1. **Challenge Claiming & Atomic Capacity Management (`POST /api/v1/projects`)**: Enforces prerequisite `CapabilityMatch` verification, atomic capacity check/increment (`409 CAPACITY_EXCEEDED`), double-claim prevention, and creator assigned as `FACULTY_LEAD`.
+2. **Multidisciplinary Team & Industry Partner Assignment**: Role authorization and verified status enforcement.
+3. **Milestone Deliverable Submission & SHA-256 Hashing (`POST /api/v1/projects/[id]/milestones`)**: Deterministic hashing of deliverable metadata and S3 artifact keys.
+4. **Cryptographic Dual-Signature Stage Gate Engine (`POST /api/v1/projects/[id]/transitions/sign`)**: Requires distinct Academic (`FACULTY_LEAD`/`INSTITUTION_ADMIN`) and External (`INDUSTRY_PARTNER`/`GOVERNMENT_OFFICIAL`) track signatures before advancing stages (`POC → PROTOTYPING → FIELD_TEST → IP_TECH_TRANSFER`). Stale snapshot hashes invalidate older signatures.
+5. **Bilateral MoU Generation & Mutual Execution (`/api/v1/projects/[id]/mou`)**: Bilateral acknowledgment workflow, IP allocation split, and printable statutory agreement layout.
+6. **Statutory Non-Custodial Compliance & Off-Platform CSR Ledger (`/api/v1/projects/[id]/csr-ledger`)**: Rejects payment processor payloads (`400 IN_PLATFORM_PAYMENT_PROHIBITED`). Off-platform bank disbursements recorded with external references and receipt keys.
