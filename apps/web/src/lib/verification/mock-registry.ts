@@ -213,6 +213,47 @@ export const MOCK_AISHE_REGISTRY: Record<string, { status: "VERIFIED" | "REJECTE
     },
   },
 
+  // --- Bulk Import Sample Jharkhand Colleges ---
+  "C-44150": {
+    status: "VERIFIED",
+    details: {
+      aisheCode: "C-44150",
+      institutionName: "Bokaro Steel City College",
+      state: "Jharkhand",
+      district: "Bokaro",
+      institutionType: "COLLEGE",
+      tier: "TIER_2",
+      accreditationStatus: "NAAC B+",
+      yearOfEstablishment: 1970,
+    },
+  },
+  "C-44210": {
+    status: "VERIFIED",
+    details: {
+      aisheCode: "C-44210",
+      institutionName: "St. Columbas College Hazaribagh",
+      state: "Jharkhand",
+      district: "Hazaribagh",
+      institutionType: "COLLEGE",
+      tier: "TIER_2",
+      accreditationStatus: "NAAC A",
+      yearOfEstablishment: 1899,
+    },
+  },
+  "C-44320": {
+    status: "VERIFIED",
+    details: {
+      aisheCode: "C-44320",
+      institutionName: "Deoghar College Deoghar",
+      state: "Jharkhand",
+      district: "Deoghar",
+      institutionType: "COLLEGE",
+      tier: "TIER_3",
+      accreditationStatus: "NAAC B",
+      yearOfEstablishment: 1962,
+    },
+  },
+
   // --- Explicit Negative Test Codes ---
   "U-FAKE-999": {
     status: "REJECTED",

@@ -34,6 +34,7 @@ export enum ChallengeStatus {
   IN_PROGRESS = "IN_PROGRESS",
   COMPLETED = "COMPLETED",
   ARCHIVED = "ARCHIVED",
+  DUPLICATE_MERGED = "DUPLICATE_MERGED",
 }
 
 export enum ProjectPhase {

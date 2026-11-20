@@ -19,6 +19,10 @@ export interface ChallengeProcessJobData {
 
 export interface HeiEmbeddingJobData {
   institutionId: string;
+  domains?: string[];
+  facultySpecializations?: string[];
+  labFacilities?: string[];
+  profileSummary?: string;
 }
 
 export interface NotificationDispatchJobData {
@@ -114,7 +118,24 @@ export async function enqueueChallengeProcess(challengeId: string) {
       attempts: 3,
       backoff: {
         type: "exponential",
-        delay: 1000,
+        delay: 2000,
+      },
+    }
+  );
+}
+
+export async function enqueueHeiEmbed(data: HeiEmbeddingJobData) {
+  const queue = getHeiEmbeddingQueue();
+  return queue.add(
+    "hei.embed",
+    data,
+    {
+      jobId: `hei-embed-${data.institutionId}-${Date.now()}`,
+      removeOnComplete: true,
+      attempts: 3,
+      backoff: {
+        type: "exponential",
+        delay: 2000,
       },
     }
   );

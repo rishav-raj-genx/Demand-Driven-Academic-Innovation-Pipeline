@@ -1,7 +1,7 @@
 # PROJECT_STATE: SIH26043 - Demand-Driven Academic Innovation Pipeline
 
 **Team:** The Unknowns  
-**Status:** Phase 4 Complete (Local Embeddings, pgvector Semantic Deduplication, Capacity-Aware Matchmaking & Seed Evaluation)  
+**Status:** Phase 6 Complete (HEI Capability Profile APIs, Bulk Institutional Profile Importer, BullMQ Re-Embedding Trigger & Mock SMS Inspection)  
 **Last Updated:** 2026-11-20
 
 ---
@@ -57,9 +57,22 @@ SIH26043/
 │   └── worker/
 │       ├── package.json                       # @sih/worker package configuration
 │       ├── tsconfig.json                      # Worker TypeScript configuration
-│       └── src/
-│           ├── index.ts                       # Worker bootstrap & shutdown handlers with --check flag
-│           └── redis.ts                       # ioredis connection pool & healthcheck probe
+│       ├── vitest.config.ts                   # Vitest configuration for worker test suite
+│       ├── src/
+│       │   ├── index.ts                       # Multi-queue worker bootstrap, dead-letter routing & graceful shutdown
+│       │   ├── redis.ts                       # ioredis connection pool & healthcheck probe
+│       │   ├── types.ts                       # Queue definitions, job data contracts & default options
+│       │   ├── queues.ts                      # BullMQ queue instances and typed enqueue helpers
+│       │   ├── clients/
+│       │   │   └── ai-client.ts               # Typed HTTP client calling FastAPI AI Engine with 30s timeout
+│       │   └── processors/
+│       │       ├── challenge-processor.ts     # Consumes challenge.process, calls AI analyze, dispatches notify.sms
+│       │       ├── hei-embed-processor.ts     # Consumes hei.embed, calls AI embed institution
+│       │       └── notification-processor.ts  # Controlled mock SMS gateway, writes to notification_logs
+│       └── tests/
+│           └── worker.test.ts                 # Unit & integration tests for AI client, processors & mock SMS
+├── scripts/
+│   └── verify-worker-pipeline.ts              # E2E pipeline verification script (intake -> BullMQ -> SMS)
 ├── docker/
 │   ├── minio/
 │   │   └── cors.xml                           # S3 CORS rules for browser presigned PUT uploads
@@ -746,6 +759,170 @@ Result:
   - `@sih/shared`: 6/6 passing tests.
   - Total: 104 passing tests monorepo-wide.
   - `pnpm -r typecheck`: 0 errors across all TypeScript packages.
+
+---
+
+## 8. Phase 5 Implementation & Verification Log (Multi-Queue BullMQ Worker & Mock SMS Notification Pipeline)
+
+### Milestone 5.1: Typed FastAPI AI Engine HTTP Client (`@sih/worker`)
+- [x] Implemented `apps/worker/src/clients/ai-client.ts`:
+  - Typed HTTP client targeting `AI_ENGINE_URL` (default: `http://127.0.0.1:8000`) with `X-Internal-Service-Key` authentication header (`dev_internal_ai_service_secret_key`).
+  - Strict 30-second abort timeout via `AbortSignal.timeout(30_000)` and `AbortController`.
+  - Structured error hierarchy via `AiClientError` capturing HTTP status codes, request endpoints, structured response bodies, duration in milliseconds, and `isTimeout` flag.
+  - Typed methods:
+    - `analyzeChallenge(challengeId: string)`: Calls `POST /internal/v1/challenges/{id}/analyze`, returning discriminated union `AnalyzeChallengeMatchedResult` | `AnalyzeChallengeDuplicateResult`.
+    - `embedInstitution(req: EmbedInstitutionRequest)`: Calls `POST /internal/v1/embed/institution`, returning embedding dimensions and metadata.
+    - `checkHealth()`: Calls `GET /health` verifying database reachability and pgvector registration.
+    - `ping()`: Calls `GET /internal/v1/ping` verifying authenticated internal communication.
+
+### Milestone 5.2: Multi-Queue BullMQ Worker Processors & Dead-Letter Handling
+- [x] Implemented Queue Architecture (`apps/worker/src/types.ts`, `apps/worker/src/queues.ts`):
+  - Supported Queues:
+    - `challenge.process` and `challenge-pipeline`
+    - `hei.embed` and `hei-embedding`
+    - `notify.sms` and `notification-dispatch`
+    - `dead-letter.queue`
+  - Configured BullMQ default job options: `attempts: 3`, exponential backoff (`delay: 2000` ms), `removeOnComplete: true`, `removeOnFail: false`.
+- [x] Implemented Challenge Analysis Processor (`apps/worker/src/processors/challenge-processor.ts`):
+  - Consumes `challenge.process` jobs.
+  - Invokes `aiClient.analyzeChallenge(challengeId)`.
+  - On `DUPLICATE_MERGED`: enqueues `notify.sms` job for the submitting citizen stating their challenge was merged into the canonical initiative and their endorsement was credited.
+  - On `MATCHED`:
+    - Enqueues `notify.sms` job for submitting citizen with top-ranked HEI name and alignment percentage.
+    - Queries PostgreSQL for affiliated `INSTITUTION_ADMIN` user(s) and enqueues high-alignment assignment SMS notification with fit percentage.
+- [x] Implemented HEI Capability Embedding Processor (`apps/worker/src/processors/hei-embed-processor.ts`):
+  - Consumes `hei.embed` jobs and calls FastAPI `POST /internal/v1/embed/institution`.
+- [x] Implemented Controlled Mock SMS Gateway Processor (`apps/worker/src/processors/notification-processor.ts`):
+  - Consumes `notify.sms` jobs.
+  - Enforces mandatory `[MOCK SMS - SIH26043]` message prefix tag.
+  - Inserts row into `notification_logs` table (`recipient_id`, `title`, `message`, `type: 'SMS'`, `is_read: false`, `data: { status: 'DELIVERED_MOCK', channel: 'SMS', phoneNumber, deliveredAt, gateway: 'MOCK_SMS_GATEWAY_SIH26043' }`).
+  - Structured Pino logging with message previews and delivery timestamps.
+- [x] Implemented Dead-Letter Handling & Graceful Shutdown (`apps/worker/src/index.ts`):
+  - On failure exceeding 3 attempts, moves job to `dead-letter.queue` with stack trace and records `JOB_DEAD_LETTER` event in PostgreSQL `audit_logs`.
+  - Graceful shutdown handles `SIGINT` and `SIGTERM`: pauses workers, closes all queues, drains Redis connections, disconnects Prisma client, and exits cleanly.
+  - Preserved CLI health check `--check` verifying Redis, PostgreSQL, and FastAPI AI Engine.
+
+### Milestone 5.3: Verification & Acceptance Criteria
+- [x] Monorepo Test Coverage:
+  - `@sih/worker`: 11/11 passing tests (`apps/worker/tests/worker.test.ts`).
+  - `@sih/web`: 68/68 passing tests (`apps/web`).
+  - `@sih/db`: 9/9 passing tests (`packages/db`).
+  - `@sih/shared`: 6/6 passing tests (`packages/shared`).
+  - `services/ai-engine`: 21/21 passing tests (`pytest`).
+  - Total: **115 passing tests** across 5 workspaces (0 failures).
+- [x] End-to-End Pipeline Verification (`pnpm test:pipeline` via `scripts/verify-worker-pipeline.ts`):
+  - Live FastAPI AI Engine and 6 BullMQ worker instances started.
+  - Challenge submitted via `POST /api/v1/challenges`.
+  - Verified within **310ms** (< 5s requirement):
+    1. BullMQ job processed without errors.
+    2. Challenge transitioned from `SUBMITTED` → `MATCHED` (or `DUPLICATE_MERGED`).
+    3. `notification_logs` populated with mock SMS records tagged `[MOCK SMS - SIH26043]` and `status: DELIVERED_MOCK`.
+
+---
+
+## 9. Phase 6 Implementation & Verification Log (HEI Capability Profile APIs & Vector Re-Embedding Lifecycle)
+
+### Milestone 6.1: Database Schema Extension & Capability Attributes
+- [x] Extended PostgreSQL `institutions` table:
+  - Added `domains text[] DEFAULT '{}'` for institutional discipline tags.
+  - Added `faculty_specializations text[] DEFAULT '{}'` for research and department focus areas.
+  - Added `lab_facilities text[] DEFAULT '{}'` for specialized laboratory and hardware infrastructure.
+  - Added `profile_summary text` for human-readable capability overviews.
+- [x] Synchronized Prisma Schema (`packages/db/prisma/schema.prisma`):
+  - Updated `model Institution` with `domains`, `facultySpecializations`, `labFacilities`, `profileSummary`.
+  - Re-generated `@sih/db` client and compiled TypeScript declarations.
+- [x] Seeded Domain Profiles across all 10 Jharkhand Institutions:
+  - Populated domains (e.g. IoT, Mining Tech, Clean Energy, Metallurgical Engineering, Water Tech, Agriculture).
+  - Populated faculty specializations and lab infrastructure across Tiers 1-3.
+
+### Milestone 6.2: HEI Capability Profile Management APIs (`@sih/web`)
+- [x] `GET /api/v1/institutions`:
+  - Lists verified HEIs with pagination (`page`, `limit`), filtering (`tier`, `districtId`, `domain`, `status`).
+  - Computes dynamic `utilizationRatio = activeProjects / maxCapacity` and flags saturation status (`isAtCapacity`).
+  - Exposes district relations and domain tags.
+- [x] `GET /api/v1/institutions/[id]`:
+  - Returns complete institutional profile including faculty specializations, lab facilities, and contact details.
+  - Resolves spatial coordinates via `getInstitutionLocation(id)`.
+  - Fetches top matched civic challenges (`matchedChallenges`) ordered by alignment score with status breakdowns.
+- [x] `PUT /api/v1/institutions/[id]/profile`:
+  - Strictly enforces RBAC: authenticated session required; authorized for `INSTITUTION_ADMIN` / `HEI_ADMIN` (own institution ID only) or `SUPER_ADMIN`.
+  - Cross-institution edits rejected with `403 Forbidden` (`FORBIDDEN_INSTITUTION_ACCESS`).
+  - Zod validation:
+    - `facultySpecializations`: string array (max 50 items, max 120 chars each).
+    - `labFacilities`: string array (max 50 items, max 120 chars each).
+    - `domains`: string array (min 1 domain required, max 20 items, max 60 chars each).
+    - `profileSummary`: optional string (max 2000 chars).
+    - `maxCapacity`: integer between 1 and 50.
+  - Enforces database constraint: `activeProjects` is immutable through this endpoint (managed strictly by PLM state transitions).
+  - Records transactional `AuditLog` (`action: "INSTITUTION_PROFILE_UPDATED"`).
+  - Enqueues BullMQ `hei.embed` job with exponential backoff (`delay: 2000ms`, `attempts: 3`) to recompute 384-dimensional pgvector embedding in real time.
+- [x] `GET /api/v1/notifications/mock-sms`:
+  - Demonstration and admin inspection endpoint querying recent mock SMS delivery logs from `notification_logs`.
+  - Extracts recipient metadata, delivery timestamps, phone numbers, and full message bodies tagged `[MOCK SMS - SIH26043]`.
+
+### Milestone 6.3: Verification & Test Suite
+- [x] Integration Test Suite (`apps/web/src/app/api/v1/institutions/institutions-integration.test.ts`):
+  - 12 comprehensive integration tests covering:
+    1. Institution directory listing with pagination and domain/tier filtering.
+    2. Detailed institution profile lookup with matched challenges queue and geospatial coordinates.
+    3. 404 handling on nonexistent institution lookup.
+    4. 401 Unauthorized rejection on unauthenticated profile update.
+    5. 403 Forbidden rejection when citizen role attempts profile update.
+    6. 403 Forbidden cross-institution ownership enforcement (HEI Admin A attempting to edit HEI B).
+    7. 400 Bad Request rejection when invalid payload submitted (e.g. `maxCapacity: 100`).
+    8. Successful HEI profile update updating Postgres (`facultySpecializations`, `labFacilities`, `domains`, `maxCapacity`).
+    9. Verification of `AuditLog` entry creation on profile update.
+    10. Verification of BullMQ `hei.embed` job enqueueing on profile update.
+    11. Verification of `SUPER_ADMIN` profile update bypass across any institution.
+    12. Verification of `GET /api/v1/notifications/mock-sms` inspecting recent mock SMS logs.
+- [x] Full Monorepo Test Suite:
+  - `@sih/web`: 80/80 passing tests (12 new integration tests + 68 existing tests).
+  - `@sih/worker`: 11/11 passing tests.
+  - `@sih/db`: 9/9 passing tests.
+  - `@sih/shared`: 6/6 passing tests.
+  - `services/ai-engine`: 21/21 passing tests (`pytest`).
+  - Total: **127 passing tests** across 5 workspaces (0 failures).
+- [x] Pipeline Verification (`pnpm test:pipeline`):
+  - Executed end-to-end pipeline verification confirming 308ms intake-to-SMS turnaround.
+
+### Milestone 6.4: Bulk Institutional Profile Importer & Cold-Start Ingestion (`@sih/web`)
+- [x] Implemented Bulk Importer Endpoint (`POST /api/v1/institutions/bulk-import`):
+  - Strict RBAC: Accessible exclusively by `GOVT_OFFICIAL` and `SUPER_ADMIN` roles; unauthorized access (`CITIZEN`, `INSTITUTION_ADMIN`, unauthenticated) rejected with `401 Unauthorized` or `403 Forbidden`.
+  - Multi-Format Ingestion: Accepts JSON array, wrapped JSON (`{ institutions: [...] }`), multipart form data (`file`), or raw CSV payload.
+  - Robust CSV Parser: Handles escaped quotes, commas within quotes, multi-delimiter array parsing (semicolons, pipes, commas), and header mapping.
+  - Batch Controls: Rejects empty batches (0 rows) and enforces upper ceiling of 200 institutions per import batch with `400 Bad Request`.
+  - Row-Level Error Isolation: Evaluates each row independently without crashing the batch. Malformed rows, non-existent district codes, or invalid AISHE codes are quarantined into per-row rejection reports `{ row, aisheCode, reason }`.
+  - Controlled Mock AISHE Gate: Evaluates candidate AISHE codes against `verificationProvider.verifyAisheCode`. Flagged/fraudulent entities (`U-FAKE-999`, etc.) are cleanly rejected.
+  - PostGIS Spatial Coordinates: Automatically establishes Point geometries via `setInstitutionLocation(id, lat, lng)` with SRID 4326.
+  - Real-Time BullMQ Re-Embedding: Enqueues `hei.embed` jobs with exponential backoff (`attempts: 3`, `delay: 2000ms`) to recompute 384-dimensional pgvector embeddings.
+  - Per-Row Report: Returns `{ total, imported, updated, rejectedCount, rejected: [{ row, aisheCode, reason }], results: [{ row, id, code, name, action }] }`.
+  - Audit Trail: Emits immutable `AuditLog` entry with action `INSTITUTIONS_BULK_IMPORTED`.
+- [x] Sample Seed Dataset (`packages/db/prisma/seeds/data/sample_hei_bulk_import.csv`):
+  - Created AISHE-aligned demo dataset featuring 3 new Tier-2/3 Jharkhand institutions:
+    1. `C-44150`: Bokaro Steel City College (Tier 2, Bokaro industrial belt, `JH_BOK`, Metallurgy/Automation)
+    2. `C-44210`: St. Columbas College Hazaribagh (Tier 2, Hazaribagh, `JH_HAZ`, Biotechnology/Environmental Geology)
+    3. `C-44320`: Deoghar College Deoghar (Tier 3, Deoghar, `JH_DEO`, Clean Energy/Agro-Tech)
+  - Registered institutional metadata in `MOCK_AISHE_REGISTRY` (`apps/web/src/lib/verification/mock-registry.ts`).
+- [x] Integration Test Suite (`apps/web/src/app/api/v1/institutions/bulk-import/bulk-import-integration.test.ts`):
+  - 10 comprehensive tests verifying:
+    1. 401 Unauthorized rejection when unauthenticated.
+    2. 403 Forbidden rejection for `CITIZEN` role.
+    3. 403 Forbidden rejection for `INSTITUTION_ADMIN` role.
+    4. 400 Bad Request rejection on empty batch.
+    5. 400 Bad Request rejection when batch size exceeds 200 rows.
+    6. Partial-success CSV import: imports `sample_hei_bulk_import.csv` (3 valid rows) + 1 invalid row (`U-FAKE-999`), confirming `imported: 3`, `rejectedCount: 1`, and clean error isolation.
+    7. PostGIS geometry point creation for all 3 imported HEIs verified via `getInstitutionLocation`.
+    8. BullMQ `hei.embed` job execution generating 384-dimensional embeddings in PostgreSQL (`vector_dims = 384`).
+    9. Re-import idempotency confirming action `UPDATED` and `updated: 3`.
+    10. Immutable `AuditLog` logging with batch metadata.
+- [x] Monorepo Test Coverage:
+  - `@sih/web`: 90/90 passing tests (10 new bulk-import tests + 80 existing tests).
+  - `@sih/worker`: 11/11 passing tests.
+  - `@sih/db`: 9/9 passing tests.
+  - `@sih/shared`: 6/6 passing tests.
+  - `services/ai-engine`: 21/21 passing tests (`pytest`).
+  - Total: **137 passing tests** across 5 workspaces (0 failures).
+
 
 
 

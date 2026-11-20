@@ -4,15 +4,24 @@
   "private": true,
   "type": "module",
   "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc -b",
     "start": "node dist/index.js",
     "check": "tsx src/index.ts --check",
     "lint": "echo 'worker lint ok'",
-    "test": "echo 'worker test ok'"
+    "test": "vitest run"
   },
   "dependencies": {
+    "@sih/db": "workspace:*",
     "@sih/shared": "workspace:*",
     "bullmq": "^5.41.0",
     "ioredis": "^5.5.0",
@@ -21,6 +30,7 @@
   "devDependencies": {
     "@types/node": "^22.13.4",
     "tsx": "^4.19.3",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.7"
   }
 }

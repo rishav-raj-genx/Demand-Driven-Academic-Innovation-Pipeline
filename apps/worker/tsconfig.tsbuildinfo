@@ -1,1 +1,1 @@
-{"root":["./src/index.ts","./src/redis.ts"],"version":"5.9.3"}
+{"root":["./src/index.ts","./src/queues.ts","./src/redis.ts","./src/types.ts","./src/clients/ai-client.ts","./src/processors/challenge-processor.ts","./src/processors/hei-embed-processor.ts","./src/processors/notification-processor.ts"],"version":"5.9.3"}

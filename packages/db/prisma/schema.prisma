@@ -55,6 +55,7 @@ enum ChallengeStatus {
   IN_PROGRESS
   COMPLETED
   ARCHIVED
+  DUPLICATE_MERGED
 
   @@map("challenge_statuses")
 }
@@ -178,6 +179,10 @@ model Institution {
   capabilityEmbedding Unsupported("vector(384)")?          @map("capability_embedding")
   activeProjects      Int                                   @default(0) @map("active_projects")
   maxCapacity         Int                                   @default(10) @map("max_capacity")
+  domains             String[]                              @default([])
+  facultySpecializations String[]                           @default([]) @map("faculty_specializations")
+  labFacilities         String[]                            @default([]) @map("lab_facilities")
+  profileSummary        String?                             @map("profile_summary") @db.Text
 
   users             User[]
   capabilityMatches CapabilityMatch[]
