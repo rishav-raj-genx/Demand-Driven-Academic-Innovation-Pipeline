@@ -12,7 +12,27 @@
     "website": "https://www.nitjsr.ac.in",
     "contactEmail": "director@nitjsr.ac.in",
     "contactPhone": "+91-657-228-6625",
-    "verificationStatus": "VERIFIED"
+    "verificationStatus": "VERIFIED",
+    "domains": [
+      "Water Filtration",
+      "Heavy Metal Adsorption",
+      "Defluoridation",
+      "Acid Mine Drainage",
+      "Industrial Water Recycling",
+      "Sensor Networks for Mine Safety"
+    ],
+    "facultySpecializations": [
+      "Heavy metal adsorption and defluoridation",
+      "Acid mine drainage passive treatment",
+      "Industrial water recycling and membrane filtration",
+      "Sensor networks for mine safety"
+    ],
+    "labFacilities": [
+      "Advanced Water Quality & Environmental Engineering Lab",
+      "Materials Characterization & Metallurgy Center",
+      "Mine Safety & Dust Suppression Test Facility"
+    ],
+    "profileSummary": "Premier Tier-1 National Institute of Technology with extensive research infrastructure in chemical defluoridation, groundwater filtration, acid mine drainage remediation, and industrial materials."
   },
   {
     "code": "U-0202",
@@ -27,7 +47,27 @@
     "website": "https://www.bitmesra.ac.in",
     "contactEmail": "vc@bitmesra.ac.in",
     "contactPhone": "+91-651-227-5444",
-    "verificationStatus": "VERIFIED"
+    "verificationStatus": "VERIFIED",
+    "domains": [
+      "Water Filtration",
+      "Solar Micro-Grids",
+      "Renewable Energy & Storage",
+      "IoT & Telemetry",
+      "Cold Storage",
+      "Rural Digital Literacy"
+    ],
+    "facultySpecializations": [
+      "Decentralized DC micro-grids and battery management systems",
+      "Solar photovoltaic lift irrigation systems",
+      "IoT wireless sensor networks and tele-monitoring",
+      "Off-grid thermal energy systems"
+    ],
+    "labFacilities": [
+      "Centre of Excellence in Renewable Energy",
+      "Power Electronics & Smart Grid Laboratory",
+      "IoT and Embedded Systems Research Hub"
+    ],
+    "profileSummary": "Premier Tier-1 engineering institute with pioneering research in decentralized solar micro-grids, smart battery storage, telemetry-enabled irrigation, and off-grid rural power."
   },
   {
     "code": "U-0210",
@@ -42,7 +82,26 @@
     "website": "https://www.rimsranchi.ac.in",
     "contactEmail": "director@rimsranchi.ac.in",
     "contactPhone": "+91-651-254-1533",
-    "verificationStatus": "VERIFIED"
+    "verificationStatus": "VERIFIED",
+    "domains": [
+      "Tribal Healthcare",
+      "Public Health Diagnostics",
+      "Biomedical Engineering",
+      "Telemedicine",
+      "Fluorosis & Malnutrition Epidemiology"
+    ],
+    "facultySpecializations": [
+      "Sickle cell trait diagnostic screening",
+      "Fluorosis epidemiology and clinical toxicology",
+      "Maternal anemia and nutritional interventions",
+      "Mobile diagnostic telemedicine clinics"
+    ],
+    "labFacilities": [
+      "Advanced Hematology & Genetic Screening Center",
+      "Clinical Toxicology & Water Contaminant Pathology Unit",
+      "State Telemedicine Research Network"
+    ],
+    "profileSummary": "Apex Tier-1 medical research university specializing in tribal healthcare diagnostics, sickle cell disease eradication, fluorosis pathology, and community telemedicine."
   },
   {
     "code": "C-44102",
@@ -57,7 +116,25 @@
     "website": "https://www.bitsindri.ac.in",
     "contactEmail": "director@bitsindri.ac.in",
     "contactPhone": "+91-326-235-0495",
-    "verificationStatus": "VERIFIED"
+    "verificationStatus": "VERIFIED",
+    "domains": [
+      "Mining Dust/Safety",
+      "Solid Waste Management",
+      "Fly Ash Utilization",
+      "Chemical Processing"
+    ],
+    "facultySpecializations": [
+      "Open-cast mine respirable dust suppression",
+      "Fly ash geopolymer construction materials",
+      "Industrial slag and solid waste remediation",
+      "Underground mine gas detection telemetry"
+    ],
+    "labFacilities": [
+      "Mine Ventilation and Industrial Dust Testing Lab",
+      "Geopolymer and Concrete Materials Testing Facility",
+      "Chemical Environmental Analysis Center"
+    ],
+    "profileSummary": "Tier-2 state engineering institution with specialized focus on mining dust suppression, pit safety sensors, industrial solid waste management, and fly ash utilization."
   },
   {
     "code": "U-0203",
@@ -72,7 +149,26 @@
     "website": "https://www.bauranchi.org",
     "contactEmail": "vc@bauranchi.org",
     "contactPhone": "+91-651-245-5660",
-    "verificationStatus": "VERIFIED"
+    "verificationStatus": "VERIFIED",
+    "domains": [
+      "Smart Agriculture",
+      "Cold Storage",
+      "Soil Health & Remediation",
+      "Drought Resistance",
+      "Agro-Forestry & Lac Cultivation"
+    ],
+    "facultySpecializations": [
+      "Solar-powered evaporative cold rooms for perishables",
+      "Drought-resilient indigenous millets and pulses",
+      "Precision soil moisture sensing and drip scheduling",
+      "Lac processing and non-timber forest produce value addition"
+    ],
+    "labFacilities": [
+      "Post-Harvest Food Technology & Cold Storage Lab",
+      "Precision Agriculture & Soil Health Center",
+      "Agro-Forestry Processing Workshop"
+    ],
+    "profileSummary": "Tier-2 premier agricultural university advancing decentralized cold storage, plateau lift irrigation, soil regeneration, and tribal agro-produce processing."
   },
   {
     "code": "U-0207",
@@ -87,7 +183,25 @@
     "website": "https://www.ranchiuniversity.ac.in",
     "contactEmail": "registrar@ranchiuniversity.ac.in",
     "contactPhone": "+91-651-220-5177",
-    "verificationStatus": "VERIFIED"
+    "verificationStatus": "VERIFIED",
+    "domains": [
+      "Solid Waste Management",
+      "Rural Digital Literacy",
+      "Environmental Chemistry",
+      "Indigenous Languages"
+    ],
+    "facultySpecializations": [
+      "Microbial organic waste rapid composting",
+      "Biodegradable polymer degradation",
+      "Tribal language digital pedagogy interfaces (Kurukh, Mundari, Santhali)",
+      "Community environmental monitoring"
+    ],
+    "labFacilities": [
+      "Environmental Science & Bio-Resource Lab",
+      "Digital Humanities & Linguistics Technology Center",
+      "Polymer Chemistry Research Facility"
+    ],
+    "profileSummary": "Tier-2 multidisciplinary university focusing on community solid waste composting, biodegradable materials, and localized tribal educational technologies."
   },
   {
     "code": "U-0204",
@@ -102,7 +216,24 @@
     "website": "https://www.kolhanuniversity.ac.in",
     "contactEmail": "vc@kolhanuniversity.ac.in",
     "contactPhone": "+91-6582-255-274",
-    "verificationStatus": "VERIFIED"
+    "verificationStatus": "VERIFIED",
+    "domains": [
+      "Tribal Healthcare",
+      "Water Filtration",
+      "Ethnobotany & Herbal Formulations",
+      "Rural Nutrition"
+    ],
+    "facultySpecializations": [
+      "Indigenous medicinal plant pharmacology",
+      "Maternal iron-deficiency anemia in tribal zones",
+      "Low-cost sand and charcoal potable water filtration",
+      "Ethnobotanical surveys in Saranda forest"
+    ],
+    "labFacilities": [
+      "Tribal Health and Ethnobotany Research Center",
+      "Field Water Quality Monitoring Unit"
+    ],
+    "profileSummary": "Tier-3 regional university pioneering indigenous medicinal plant research, maternal health interventions, and field-deployable low-cost water filtration in West Singhbhum."
   },
   {
     "code": "U-0208",
@@ -117,7 +248,24 @@
     "website": "https://www.skmu.ac.in",
     "contactEmail": "vc@skmu.ac.in",
     "contactPhone": "+91-6434-222-495",
-    "verificationStatus": "VERIFIED"
+    "verificationStatus": "VERIFIED",
+    "domains": [
+      "Solar Micro-Grids",
+      "Rural Digital Literacy",
+      "Tribal Healthcare",
+      "Vernacular Digital Pedagogy"
+    ],
+    "facultySpecializations": [
+      "Micro-solar systems for forest-fringe tribal hamlets",
+      "Santhali Ol Chiki digital learning tools",
+      "Point-of-care mobile health diagnostics",
+      "Indigenous tribal handicraft e-commerce platforms"
+    ],
+    "labFacilities": [
+      "Santhal Pargana Rural Innovation & Renewable Center",
+      "Vernacular EdTech Testing Lab"
+    ],
+    "profileSummary": "Tier-3 university anchored in Santhal Parganas specializing in decentralized solar micro-grids, Ol Chiki vernacular educational platforms, and remote tribal telemetry."
   },
   {
     "code": "U-0206",
@@ -132,7 +280,24 @@
     "website": "https://www.npu.ac.in",
     "contactEmail": "vc@npu.ac.in",
     "contactPhone": "+91-6562-222-040",
-    "verificationStatus": "VERIFIED"
+    "verificationStatus": "VERIFIED",
+    "domains": [
+      "Water Filtration",
+      "Defluoridation",
+      "Drought Management",
+      "Smart Agriculture"
+    ],
+    "facultySpecializations": [
+      "Fluoride mitigation via local adsorbent minerals (laterite, activated alumina)",
+      "Rainwater harvesting in drought-prone Palamu plateau",
+      "Fluorosis health impact assessment",
+      "Drought-resistant dryland cropping"
+    ],
+    "labFacilities": [
+      "Palamu Water Quality & Fluoride Research Lab",
+      "Dryland Farming Demonstration Field"
+    ],
+    "profileSummary": "Tier-3 university located in fluorosis-endemic Palamu division, leading research in community adsorption defluoridation units, groundwater surveillance, and drought resilience."
   },
   {
     "code": "S-12055",
@@ -147,6 +312,24 @@
     "website": "https://www.gpadityapur.ac.in",
     "contactEmail": "principal@gpadityapur.ac.in",
     "contactPhone": "+91-657-238-3101",
-    "verificationStatus": "VERIFIED"
+    "verificationStatus": "VERIFIED",
+    "domains": [
+      "Industrial Robotics",
+      "Advanced Manufacturing",
+      "Waste Recycling",
+      "Automotive Component Testing"
+    ],
+    "facultySpecializations": [
+      "CNC machining and rapid prototyping for MSME clusters",
+      "Industrial automation and PLC retrofitting",
+      "Automotive slag and foundry sand recycling",
+      "Battery pack enclosure fabrication"
+    ],
+    "labFacilities": [
+      "Advanced Manufacturing & CNC Workshop",
+      "Industrial Automation & Robotics Lab",
+      "Materials Testing & Metrology Unit"
+    ],
+    "profileSummary": "Tier-3 premier technical polytechnic in Adityapur Auto Cluster providing rapid prototyping, CNC manufacturing, MSME automation support, and foundry waste recycling."
   }
 ]

@@ -78,9 +78,20 @@ describe("HEI Capability Profile & Mock SMS Integration Test Suite", () => {
     });
 
     // 4. Create Citizen Token (Unauthorized for institutional profile updates)
-    const citizen = await prisma.user.findFirstOrThrow({
+    let citizen = await prisma.user.findFirst({
       where: { role: "CITIZEN" },
     });
+    if (!citizen) {
+      citizen = await prisma.user.create({
+        data: {
+          email: `citizen_test_${Date.now()}@sih.gov.in`,
+          passwordHash: "hash",
+          fullName: "Birsa Soren",
+          role: "CITIZEN",
+          verificationStatus: "VERIFIED",
+        },
+      });
+    }
     citizenToken = await signAccessToken({
       sub: citizen.id,
       email: citizen.email,
@@ -430,6 +441,24 @@ describe("HEI Capability Profile & Mock SMS Integration Test Suite", () => {
 
   describe("GET /api/v1/notifications/mock-sms", () => {
     it("should return recent mock SMS notification logs tagged [MOCK SMS - SIH26043]", async () => {
+      // Ensure at least one mock SMS notification log exists for deterministic test isolation
+      const citizenUser = await prisma.user.findFirstOrThrow({
+        where: { role: "CITIZEN" },
+      });
+      await prisma.notificationLog.create({
+        data: {
+          recipientId: citizenUser.id,
+          title: "Challenge Status Update",
+          message: "[MOCK SMS - SIH26043] Challenge jh-chal-001 matched with BIT Mesra.",
+          type: "SMS",
+          data: {
+            phoneNumber: citizenUser.phoneNumber ?? "+91-9876543210",
+            status: "DELIVERED_MOCK",
+            gateway: "MOCK_SMS_GATEWAY_SIH26043",
+          },
+        },
+      });
+
       const req = new Request("http://localhost:3000/api/v1/notifications/mock-sms?limit=10");
       const res = await getMockSmsLogsHandler(req);
       expect(res.status).toBe(200);

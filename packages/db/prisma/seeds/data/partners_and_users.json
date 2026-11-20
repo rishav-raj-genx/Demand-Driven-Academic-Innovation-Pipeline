@@ -53,6 +53,13 @@
   ],
   "users": [
     {
+      "email": "citizen@sih.gov.in",
+      "fullName": "Birsa Soren",
+      "role": "CITIZEN",
+      "isEmailVerified": true,
+      "verificationStatus": "VERIFIED"
+    },
+    {
       "email": "student@sih.gov.in",
       "fullName": "Aakash Soren",
       "role": "STUDENT",

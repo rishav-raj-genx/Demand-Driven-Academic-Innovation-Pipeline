@@ -6,9 +6,12 @@
   "scripts": {
     "dev": "pnpm --parallel -r dev",
     "build": "pnpm -r build",
+    "typecheck": "pnpm -r --if-present typecheck",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
+    "test:e2e": "pnpm --filter @sih/web test:e2e",
     "test:pipeline": "tsx --tsconfig apps/web/tsconfig.json scripts/verify-worker-pipeline.ts",
+    "demo:prepare": "tsx scripts/demo-prepare.ts",
     "infra:up": "docker compose up -d",
     "infra:down": "docker compose down"
   },

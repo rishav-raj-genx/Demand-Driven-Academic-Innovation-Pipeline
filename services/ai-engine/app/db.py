@@ -31,6 +31,7 @@ def get_db_pool() -> ConnectionPool:
             max_size=10,
             open=True,
             configure=configure_connection,
+            check=ConnectionPool.check_connection,
         )
     return _pool
 
@@ -43,6 +44,15 @@ def close_db_pool() -> None:
     if _pool is not None:
         _pool.close()
         _pool = None
+
+
+def reset_db_pool() -> ConnectionPool:
+    """
+    Closes existing connection pool and forces a fresh pool creation.
+    Essential after schema migrations or database resets when type OIDs change.
+    """
+    close_db_pool()
+    return get_db_pool()
 
 
 @contextmanager

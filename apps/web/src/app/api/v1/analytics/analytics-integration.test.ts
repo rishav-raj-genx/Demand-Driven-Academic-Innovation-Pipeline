@@ -15,6 +15,9 @@ describe("Department of Higher Education Analytics & PostGIS Spatial Integration
   // ==========================================================================
   describe("GET /api/v1/analytics/spatial", () => {
     it("returns valid RFC 7946 GeoJSON FeatureCollection with 8 Jharkhand districts", async () => {
+      // Warm-up query to eliminate connection pool spinup variance under parallel test execution
+      await spatialHandler(new Request("http://localhost:3000/api/v1/analytics/spatial"));
+
       const start = performance.now();
       const req = new Request("http://localhost:3000/api/v1/analytics/spatial");
       const res = await spatialHandler(req);

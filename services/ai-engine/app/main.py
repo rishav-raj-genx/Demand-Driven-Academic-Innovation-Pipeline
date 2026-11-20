@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 import psycopg
 from app.config import Settings, get_settings
 from app.security import verify_internal_service_key
-from app.db import get_db_pool, close_db_pool, get_db_connection
+from app.db import get_db_pool, close_db_pool, reset_db_pool, get_db_connection
 from app.embeddings import (
     embed_text,
     embed_texts,
@@ -255,6 +255,17 @@ def embed_institution_capability(
             }
 
 
+@app.post("/internal/v1/reset-pool", response_model=Dict[str, str])
+def reset_connection_pool(
+    _service_key: str = Depends(verify_internal_service_key),
+) -> Dict[str, str]:
+    """
+    Closes existing connection pool and refreshes vector type OID registrations.
+    """
+    reset_db_pool()
+    return {"status": "ok", "message": "Connection pool successfully refreshed"}
+
+
 @app.post("/internal/v1/embed/institutions/all", response_model=Dict[str, Any])
 def embed_all_institutions(
     _service_key: str = Depends(verify_internal_service_key),
@@ -263,6 +274,8 @@ def embed_all_institutions(
     Computes and persists capability embeddings for all institutions in the database.
     Uses fast batch encoding to process seeded HEIs.
     """
+    # Refresh connection pool to avoid stale type OIDs after schema resets
+    reset_db_pool()
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -356,6 +369,9 @@ def analyze_pending_challenges(
     )
     force = req.force_reembed_all if req else False
     limit_clause = f"LIMIT {req.limit}" if req and req.limit else ""
+
+    if force:
+        reset_db_pool()
 
     with get_db_connection() as conn:
         with conn.cursor() as cur:

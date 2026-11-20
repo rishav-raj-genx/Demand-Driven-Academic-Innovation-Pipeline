@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import crypto from "node:crypto";
 import { Prisma, UserRole, ProjectPhase, ApprovalDecision } from "@prisma/client";
 import { hash } from "@node-rs/argon2";
 import {
@@ -40,6 +41,10 @@ interface InstitutionSeed {
   contactEmail: string;
   contactPhone: string;
   verificationStatus: "VERIFIED" | "PENDING";
+  domains?: string[];
+  facultySpecializations?: string[];
+  labFacilities?: string[];
+  profileSummary?: string;
 }
 
 interface PartnerSeed {
@@ -156,6 +161,10 @@ export async function seed(): Promise<void> {
         contactEmail: inst.contactEmail,
         contactPhone: inst.contactPhone,
         verificationStatus: inst.verificationStatus,
+        domains: inst.domains ?? [],
+        facultySpecializations: inst.facultySpecializations ?? [],
+        labFacilities: inst.labFacilities ?? [],
+        profileSummary: inst.profileSummary ?? null,
       },
       create: {
         code: inst.code,
@@ -169,6 +178,10 @@ export async function seed(): Promise<void> {
         contactEmail: inst.contactEmail,
         contactPhone: inst.contactPhone,
         verificationStatus: inst.verificationStatus,
+        domains: inst.domains ?? [],
+        facultySpecializations: inst.facultySpecializations ?? [],
+        labFacilities: inst.labFacilities ?? [],
+        profileSummary: inst.profileSummary ?? null,
       },
     });
 
@@ -301,6 +314,16 @@ export async function seed(): Promise<void> {
       continue;
     }
 
+    const projectChallengeKeys: Record<string, string> = {
+      "Solar-Powered Groundwater Defluoridation Unit for Palamu Rural Schools": "jh-chal-001",
+      "IoT Sensor Array for Real-Time Coal Dust Suppression in Jharia Open-Cast Mines": "jh-chal-005",
+      "Bio-Composite Lac Resin Formulations for Eco-Friendly Packaging": "jh-chal-007",
+    };
+    const challengeKey = projectChallengeKeys[proj.title];
+    const linkedChallenge = challengeKey
+      ? await prisma.challenge.findUnique({ where: { clientIdempotencyKey: challengeKey } })
+      : null;
+
     let project = await prisma.project.findFirst({
       where: {
         title: proj.title,
@@ -314,6 +337,7 @@ export async function seed(): Promise<void> {
           title: proj.title,
           description: proj.description,
           currentPhase: proj.currentPhase,
+          challengeId: linkedChallenge?.id ?? null,
           institutionId,
           industryPartnerId: partnerId,
           budget: proj.budget,
@@ -325,6 +349,7 @@ export async function seed(): Promise<void> {
         where: { id: project.id },
         data: {
           currentPhase: proj.currentPhase,
+          challengeId: linkedChallenge?.id ?? null,
           budget: proj.budget,
         },
       });
@@ -349,7 +374,7 @@ export async function seed(): Promise<void> {
       });
     }
 
-    // Add Milestone
+    // Add Milestone with cryptographic deliverable hash and submitted state
     let milestone = await prisma.milestone.findFirst({
       where: {
         projectId: project.id,
@@ -357,37 +382,76 @@ export async function seed(): Promise<void> {
       },
     });
 
+    const isPocProject = proj.currentPhase === "POC";
+    const milestoneSummary = isPocProject
+      ? "Laboratory filtration efficiency test report showing 88.4% fluoride reduction in Palamu groundwater samples below BIS 10500 allowable limit."
+      : "Milestone deliverable specification and verification protocol.";
+    const artifactKeys = isPocProject
+      ? ["milestone_artifact/faculty/poc-defluoridation-report.pdf"]
+      : ["milestone_artifact/faculty/phase-deliverable-spec.pdf"];
+
+    const contentHashPayload = {
+      projectId: project.id,
+      phase: proj.milestonePhase,
+      title: proj.milestoneTitle,
+      summary: milestoneSummary,
+      artifactKeys,
+    };
+    const contentHash = crypto
+      .createHash("sha256")
+      .update(JSON.stringify(contentHashPayload))
+      .digest("hex");
+
     if (!milestone) {
       milestone = await prisma.milestone.create({
         data: {
           projectId: project.id,
           title: proj.milestoneTitle,
+          summary: milestoneSummary,
+          description: milestoneSummary,
           phase: proj.milestonePhase,
-          status: proj.currentPhase === "POC" ? ApprovalDecision.PENDING : ApprovalDecision.APPROVED,
-          isCompleted: proj.currentPhase !== "POC",
+          status: isPocProject
+            ? ApprovalDecision.SUBMITTED_FOR_APPROVAL
+            : ApprovalDecision.APPROVED,
+          isCompleted: !isPocProject,
+          contentHash,
+          artifactKeys,
+          completedAt: !isPocProject ? new Date() : null,
+        },
+      });
+    } else {
+      milestone = await prisma.milestone.update({
+        where: { id: milestone.id },
+        data: {
+          title: proj.milestoneTitle,
+          summary: milestoneSummary,
+          description: milestoneSummary,
+          status: isPocProject
+            ? ApprovalDecision.SUBMITTED_FOR_APPROVAL
+            : ApprovalDecision.APPROVED,
+          isCompleted: !isPocProject,
+          contentHash,
+          artifactKeys,
+          completedAt: !isPocProject ? new Date() : null,
         },
       });
     }
 
-    // For Project 1 in POC: Create single signature (FACULTY) leaving second signature (INDUSTRY_PARTNER) ready for live dual-signature transition!
-    if (proj.currentPhase === "POC" && facultyUserId && milestone) {
-      await prisma.phaseApproval.upsert({
-        where: {
-          milestoneId_signerRole: {
-            milestoneId: milestone.id,
-            signerRole: UserRole.FACULTY,
-          },
-        },
-        update: {
-          decision: ApprovalDecision.APPROVED,
-          remarks: "Proof of Concept validation verified by faculty PI.",
-        },
-        create: {
+    // For Project 1 in POC: Create single signature (ACADEMIC_APPROVER) leaving second signature (EXTERNAL_APPROVER) ready for live dual-signature transition!
+    if (isPocProject && facultyUserId && milestone) {
+      await prisma.phaseApproval.deleteMany({
+        where: { milestoneId: milestone.id },
+      });
+
+      await prisma.phaseApproval.create({
+        data: {
           milestoneId: milestone.id,
           signerId: facultyUserId,
-          signerRole: UserRole.FACULTY,
+          signerRole: "ACADEMIC_APPROVER",
           decision: ApprovalDecision.APPROVED,
-          remarks: "Proof of Concept validation verified by faculty PI.",
+          snapshotHash: contentHash,
+          remarks: "Proof of Concept validation verified by faculty PI Dr. Sunita Murmu against BIS 10500 potable water benchmarks.",
+          signedAt: new Date(),
         },
       });
     }
@@ -412,6 +476,41 @@ export async function seed(): Promise<void> {
     }
   }
   console.log(`✓ Seeded ${partnersAndUsersData.projects.length} lifecycle stage projects (POC, PROTOTYPING, IP_TECH_TRANSFER)`);
+
+  // Seed initial Mock SMS logs for Live Demonstration Checkpoint 5
+  const birsa = await prisma.user.findFirst({ where: { role: "CITIZEN" } });
+  if (birsa) {
+    await prisma.notificationLog.createMany({
+      data: [
+        {
+          recipientId: birsa.id,
+          title: "Challenge Match Alert",
+          message:
+            "[MOCK SMS - SIH26043] Your challenge jh-chal-001 (Groundwater Defluoridation) was assigned to BIT Mesra (Tier-1). Status: UNDER_EVALUATION.",
+          type: "SMS",
+          data: {
+            phoneNumber: birsa.phoneNumber ?? "+91-9876543210",
+            status: "DELIVERED_MOCK",
+            gateway: "MOCK_SMS_GATEWAY_SIH26043",
+          },
+        },
+        {
+          recipientId: birsa.id,
+          title: "Milestone Verified",
+          message:
+            "[MOCK SMS - SIH26043] Milestone 'Electrochemical reactor testing' submitted for Project 1. Ready for dual-signature signoff.",
+          type: "SMS",
+          data: {
+            phoneNumber: birsa.phoneNumber ?? "+91-9876543210",
+            status: "DELIVERED_MOCK",
+            gateway: "MOCK_SMS_GATEWAY_SIH26043",
+          },
+        },
+      ],
+      skipDuplicates: true,
+    });
+    console.log("✓ Seeded mock SMS notification logs for Checkpoint 5");
+  }
 
   console.log("Database seed completed successfully.");
 }

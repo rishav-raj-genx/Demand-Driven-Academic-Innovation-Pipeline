@@ -18,6 +18,7 @@ import {
   FileSpreadsheet,
   MessageSquare,
   FolderGit2,
+  Sparkles,
 } from "lucide-react";
 
 export interface ShellUser {
@@ -138,14 +139,22 @@ export const NAV_ITEMS: NavItem[] = [
     icon: MessageSquare,
     roles: ["GOVT_OFFICIAL", "SUPER_ADMIN", "INSTITUTION_ADMIN", "HEI_ADMIN"],
   },
+  {
+    label: "Demo Inspector",
+    href: "/admin/demo",
+    icon: Sparkles,
+    roles: ["SUPER_ADMIN"],
+  },
 ];
 
 export function getAllowedNavItems(role?: string): NavItem[] {
   if (!role) return [];
   const normalizedRole = role === "HEI_ADMIN" ? "INSTITUTION_ADMIN" : role;
-  return NAV_ITEMS.filter((item) =>
-    item.roles.some((r) => r === role || r === normalizedRole)
-  );
+  const isDemoEnabled = process.env.NEXT_PUBLIC_ENABLE_DEMO_HELPER !== "false";
+  return NAV_ITEMS.filter((item) => {
+    if (item.href === "/admin/demo" && !isDemoEnabled) return false;
+    return item.roles.some((r) => r === role || r === normalizedRole);
+  });
 }
 
 interface AppShellProps {

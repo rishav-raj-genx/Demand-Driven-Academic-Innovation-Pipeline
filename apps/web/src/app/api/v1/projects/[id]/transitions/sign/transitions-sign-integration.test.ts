@@ -73,19 +73,16 @@ describe("PLM Dual-Signature Transition Engine Integration Suite (Milestone 6.2)
       });
     }
 
-    unverifiedPartner = await prisma.industryPartner.findFirst({
-      where: { organizationName: "Unverified Mining MSME" },
+    unverifiedPartner = await prisma.industryPartner.upsert({
+      where: { cin: "U99999JH2024PTC999999" },
+      update: {},
+      create: {
+        organizationName: "Unverified Mining MSME",
+        cin: "U99999JH2024PTC999999",
+        industrySector: "MANUFACTURING",
+        verificationStatus: "PENDING",
+      },
     });
-    if (!unverifiedPartner) {
-      unverifiedPartner = await prisma.industryPartner.create({
-        data: {
-          organizationName: "Unverified Mining MSME",
-          cin: "U99999JH2024PTC999999",
-          industrySector: "MANUFACTURING",
-          verificationStatus: "PENDING",
-        },
-      });
-    }
 
     otherPartner = await prisma.industryPartner.findFirst({
       where: { cin: "L17111MH1973PLC019786" },

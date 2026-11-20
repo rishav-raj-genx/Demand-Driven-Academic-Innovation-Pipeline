@@ -92,19 +92,16 @@ describe("Project Lifecycle Management Integration Suite (Milestone 6.1)", () =>
     }
 
     // 4. Fetch or create unverified Industry Partner
-    unverifiedPartner = await prisma.industryPartner.findFirst({
-      where: { organizationName: "Unverified Mining MSME" },
+    unverifiedPartner = await prisma.industryPartner.upsert({
+      where: { cin: "U99999JH2024PTC999999" },
+      update: {},
+      create: {
+        organizationName: "Unverified Mining MSME",
+        cin: "U99999JH2024PTC999999",
+        industrySector: "MANUFACTURING",
+        verificationStatus: "PENDING",
+      },
     });
-    if (!unverifiedPartner) {
-      unverifiedPartner = await prisma.industryPartner.create({
-        data: {
-          organizationName: "Unverified Mining MSME",
-          cin: "U99999JH2024PTC999999",
-          industrySector: "MANUFACTURING",
-          verificationStatus: "PENDING",
-        },
-      });
-    }
 
     // 5. Setup Users & JWTs
     // Faculty Lead
