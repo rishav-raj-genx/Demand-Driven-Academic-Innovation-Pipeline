@@ -1,0 +1,186 @@
+[
+  {
+    "code": "JH_RAN",
+    "name": "Ranchi",
+    "state": "Jharkhand",
+    "centroid": {
+      "type": "Point",
+      "coordinates": [85.3096, 23.3441]
+    },
+    "boundary": {
+      "type": "MultiPolygon",
+      "coordinates": [
+        [
+          [
+            [85.10, 23.15],
+            [85.60, 23.15],
+            [85.60, 23.55],
+            [85.10, 23.55],
+            [85.10, 23.15]
+          ]
+        ]
+      ]
+    }
+  },
+  {
+    "code": "JH_ESN",
+    "name": "East Singhbhum",
+    "state": "Jharkhand",
+    "centroid": {
+      "type": "Point",
+      "coordinates": [86.2029, 22.8046]
+    },
+    "boundary": {
+      "type": "MultiPolygon",
+      "coordinates": [
+        [
+          [
+            [86.00, 22.50],
+            [86.55, 22.50],
+            [86.55, 23.00],
+            [86.00, 23.00],
+            [86.00, 22.50]
+          ]
+        ]
+      ]
+    }
+  },
+  {
+    "code": "JH_DHN",
+    "name": "Dhanbad",
+    "state": "Jharkhand",
+    "centroid": {
+      "type": "Point",
+      "coordinates": [86.4304, 23.7957]
+    },
+    "boundary": {
+      "type": "MultiPolygon",
+      "coordinates": [
+        [
+          [
+            [86.20, 23.65],
+            [86.65, 23.65],
+            [86.65, 24.00],
+            [86.20, 24.00],
+            [86.20, 23.65]
+          ]
+        ]
+      ]
+    }
+  },
+  {
+    "code": "JH_BOK",
+    "name": "Bokaro",
+    "state": "Jharkhand",
+    "centroid": {
+      "type": "Point",
+      "coordinates": [85.9610, 23.6693]
+    },
+    "boundary": {
+      "type": "MultiPolygon",
+      "coordinates": [
+        [
+          [
+            [85.75, 23.45],
+            [86.20, 23.45],
+            [86.20, 23.85],
+            [85.75, 23.85],
+            [85.75, 23.45]
+          ]
+        ]
+      ]
+    }
+  },
+  {
+    "code": "JH_HAZ",
+    "name": "Hazaribagh",
+    "state": "Jharkhand",
+    "centroid": {
+      "type": "Point",
+      "coordinates": [85.3637, 23.9925]
+    },
+    "boundary": {
+      "type": "MultiPolygon",
+      "coordinates": [
+        [
+          [
+            [85.15, 23.80],
+            [85.60, 23.80],
+            [85.60, 24.25],
+            [85.15, 24.25],
+            [85.15, 23.80]
+          ]
+        ]
+      ]
+    }
+  },
+  {
+    "code": "JH_DEO",
+    "name": "Deoghar",
+    "state": "Jharkhand",
+    "centroid": {
+      "type": "Point",
+      "coordinates": [86.6974, 24.4826]
+    },
+    "boundary": {
+      "type": "MultiPolygon",
+      "coordinates": [
+        [
+          [
+            [86.50, 24.25],
+            [86.95, 24.25],
+            [86.95, 24.65],
+            [86.50, 24.65],
+            [86.50, 24.25]
+          ]
+        ]
+      ]
+    }
+  },
+  {
+    "code": "JH_DUM",
+    "name": "Dumka",
+    "state": "Jharkhand",
+    "centroid": {
+      "type": "Point",
+      "coordinates": [87.2472, 24.2676]
+    },
+    "boundary": {
+      "type": "MultiPolygon",
+      "coordinates": [
+        [
+          [
+            [87.05, 24.05],
+            [87.50, 24.05],
+            [87.50, 24.55],
+            [87.05, 24.55],
+            [87.05, 24.05]
+          ]
+        ]
+      ]
+    }
+  },
+  {
+    "code": "JH_PAL",
+    "name": "Palamu",
+    "state": "Jharkhand",
+    "centroid": {
+      "type": "Point",
+      "coordinates": [84.0722, 24.0416]
+    },
+    "boundary": {
+      "type": "MultiPolygon",
+      "coordinates": [
+        [
+          [
+            [83.85, 23.85],
+            [84.45, 23.85],
+            [84.45, 24.35],
+            [83.85, 24.35],
+            [83.85, 23.85]
+          ]
+        ]
+      ]
+    }
+  }
+]

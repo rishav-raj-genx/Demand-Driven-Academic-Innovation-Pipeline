@@ -1,0 +1,151 @@
+{
+  "partners": [
+    {
+      "cin": "U85100JH2016NPL008638",
+      "organizationName": "Tata Steel Foundation",
+      "industrySector": "Rural Development & Public Health",
+      "districtCode": "JH_ESN",
+      "website": "https://www.tatasteelfoundation.org",
+      "contactEmail": "csr.jharkhand@tatasteel.com",
+      "contactPhone": "+91-657-243-1234",
+      "verificationStatus": "VERIFIED"
+    },
+    {
+      "cin": "U45201JH2005NPL011422",
+      "organizationName": "Adityapur Auto Cluster MSME Consortium",
+      "industrySector": "Advanced Automotive & Heavy Engineering",
+      "districtCode": "JH_ESN",
+      "website": "https://www.adityapurautocluster.org",
+      "contactEmail": "info@adityapurautocluster.org",
+      "contactPhone": "+91-657-238-7654",
+      "verificationStatus": "VERIFIED"
+    },
+    {
+      "cin": "U40106JH2019PTC013221",
+      "organizationName": "Jharkhand Renewable Innovations Private Limited",
+      "industrySector": "Decentralized Solar & Clean Tech",
+      "districtCode": "JH_RAN",
+      "website": "https://www.jharkhandrenewable.com",
+      "contactEmail": "contact@jharkhandrenewable.com",
+      "contactPhone": "+91-651-233-4455",
+      "verificationStatus": "VERIFIED"
+    },
+    {
+      "cin": "U27310JH2018PTC011984",
+      "organizationName": "Bokaro Eco-Industrial MSME Federation",
+      "industrySector": "Waste Recycling & Environmental Engineering",
+      "districtCode": "JH_BOK",
+      "website": "https://www.bokaroeco.org",
+      "contactEmail": "msme.bokaro@bokaroeco.org",
+      "contactPhone": "+91-6542-240-889",
+      "verificationStatus": "VERIFIED"
+    },
+    {
+      "cin": "U10200JH1975GOI001223",
+      "organizationName": "Central Coalfields Sustainable Development CSR Cell",
+      "industrySector": "Mining Safety & Occupational Health",
+      "districtCode": "JH_RAN",
+      "website": "https://www.centralcoalfields.in",
+      "contactEmail": "csr.ccl@coalindia.in",
+      "contactPhone": "+91-651-236-0123",
+      "verificationStatus": "VERIFIED"
+    }
+  ],
+  "users": [
+    {
+      "email": "student@sih.gov.in",
+      "fullName": "Aakash Soren",
+      "role": "STUDENT",
+      "institutionCode": "U-0205",
+      "isEmailVerified": true,
+      "verificationStatus": "VERIFIED"
+    },
+    {
+      "email": "faculty@sih.gov.in",
+      "fullName": "Dr. Sunita Murmu",
+      "role": "FACULTY",
+      "institutionCode": "U-0202",
+      "isEmailVerified": true,
+      "verificationStatus": "VERIFIED"
+    },
+    {
+      "email": "researcher@sih.gov.in",
+      "fullName": "Dr. Rajesh Kumar Mahato",
+      "role": "RESEARCHER",
+      "institutionCode": "U-0210",
+      "isEmailVerified": true,
+      "verificationStatus": "VERIFIED"
+    },
+    {
+      "email": "inst.admin@sih.gov.in",
+      "fullName": "Prof. Alok Sen",
+      "role": "INSTITUTION_ADMIN",
+      "institutionCode": "U-0202",
+      "isEmailVerified": true,
+      "verificationStatus": "VERIFIED"
+    },
+    {
+      "email": "industry@tata.com",
+      "fullName": "Vikramaditya Roy",
+      "role": "INDUSTRY_PARTNER",
+      "partnerCin": "U85100JH2016NPL008638",
+      "isEmailVerified": true,
+      "verificationStatus": "VERIFIED"
+    },
+    {
+      "email": "investor@sih.gov.in",
+      "fullName": "Priya Sharma",
+      "role": "INVESTOR",
+      "isEmailVerified": true,
+      "verificationStatus": "VERIFIED"
+    },
+    {
+      "email": "csr@tatasteel.com",
+      "fullName": "Meenakshi Kispotta",
+      "role": "CSR_PARTNER",
+      "partnerCin": "U85100JH2016NPL008638",
+      "isEmailVerified": true,
+      "verificationStatus": "VERIFIED"
+    },
+    {
+      "email": "admin@sih.gov.in",
+      "fullName": "Super Administrator SIH26043",
+      "role": "SUPER_ADMIN",
+      "isEmailVerified": true,
+      "verificationStatus": "VERIFIED"
+    }
+  ],
+  "projects": [
+    {
+      "title": "Solar-Powered Groundwater Defluoridation Unit for Palamu Rural Schools",
+      "description": "Validation and fabrication of an automated, low-maintenance solar adsorption defluoridation system for fluorosis-endemic schools across Daltonganj and Palamu.",
+      "currentPhase": "POC",
+      "institutionCode": "U-0202",
+      "partnerCin": "U85100JH2016NPL008638",
+      "budget": 500000.00,
+      "milestoneTitle": "Laboratory Filtration Efficiency & Media Saturation Verification",
+      "milestonePhase": "POC"
+    },
+    {
+      "title": "IoT Sensor Array for Real-Time Coal Dust Suppression in Jharia Open-Cast Mines",
+      "description": "Deployable ruggedized IoT sensor telemetry network measuring respirable PM10/PM2.5 with automated mist-cannon actuation in active coal extraction pits.",
+      "currentPhase": "PROTOTYPING",
+      "institutionCode": "U-0205",
+      "partnerCin": "U45201JH2005NPL011422",
+      "budget": 1200000.00,
+      "milestoneTitle": "Field Mesh Network Testing & Enclosure Certification",
+      "milestonePhase": "PROTOTYPING"
+    },
+    {
+      "title": "Bio-Composite Lac Resin Formulations for Eco-Friendly Packaging",
+      "description": "Commercial scaling of modified raw lac resin derived from Palas and Ber trees for industrial bioplastic packaging films replacing single-use polyolefins.",
+      "currentPhase": "IP_TECH_TRANSFER",
+      "institutionCode": "U-0203",
+      "partnerCin": "U27310JH2018PTC011984",
+      "budget": 2500000.00,
+      "milestoneTitle": "Pilot Plant Industrial Extrusion & Patent Registration",
+      "milestonePhase": "IP_TECH_TRANSFER",
+      "mouTerms": "Exclusive regional licensing granted to MSME Consortium with 4.5% net profit royalty allocated to primary tribal lac grower societies."
+    }
+  ]
+}

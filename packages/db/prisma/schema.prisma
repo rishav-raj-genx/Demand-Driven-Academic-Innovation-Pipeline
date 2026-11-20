@@ -22,6 +22,8 @@ enum UserRole {
   INVESTOR
   CSR_PARTNER
   SUPER_ADMIN
+  CITIZEN
+  GOVT_OFFICIAL
 
   @@map("user_roles")
 }
@@ -46,6 +48,7 @@ enum VerificationStatus {
 
 enum ChallengeStatus {
   DRAFT
+  SUBMITTED
   OPEN
   UNDER_REVIEW
   MATCHED
@@ -147,6 +150,7 @@ model District {
 
   institutions     Institution[]
   industryPartners IndustryPartner[]
+  challenges       Challenge[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -220,8 +224,12 @@ model Challenge {
   id                   String                                @id @default(uuid()) @db.Uuid
   title                String
   problemStatement     String                                @map("problem_statement") @db.Text
-  industryPartnerId    String                                @map("industry_partner_id") @db.Uuid
-  industryPartner      IndustryPartner                       @relation(fields: [industryPartnerId], references: [id], onDelete: Cascade)
+  domain               String?
+  urgency              String                                @default("MEDIUM")
+  districtId           String?                               @map("district_id") @db.Uuid
+  district             District?                             @relation(fields: [districtId], references: [id], onDelete: SetNull)
+  industryPartnerId    String?                               @map("industry_partner_id") @db.Uuid
+  industryPartner      IndustryPartner?                      @relation(fields: [industryPartnerId], references: [id], onDelete: SetNull)
   createdById          String                                @map("created_by_id") @db.Uuid
   createdBy            User                                  @relation("ChallengeCreator", fields: [createdById], references: [id], onDelete: Restrict)
   status               ChallengeStatus                       @default(OPEN)
@@ -231,6 +239,11 @@ model Challenge {
   location             Unsupported("geometry(Point, 4326)")?
   embedding            Unsupported("vector(384)")?
   clientIdempotencyKey String?                               @unique @map("client_idempotency_key")
+  mediaKeys            String[]                              @default([]) @map("media_keys")
+  endorsementCount     Int                                   @default(0) @map("endorsement_count")
+  canonicalId          String?                               @map("canonical_id") @db.Uuid
+  canonicalChallenge   Challenge?                            @relation("ChallengeDuplicates", fields: [canonicalId], references: [id], onDelete: SetNull)
+  duplicateChallenges  Challenge[]                           @relation("ChallengeDuplicates")
   deadline             DateTime?
 
   capabilityMatches CapabilityMatch[]
@@ -241,9 +254,11 @@ model Challenge {
 
   @@index([location], type: Gist, map: "idx_challenges_location_gist")
   @@index([embedding], map: "idx_challenges_embedding_hnsw")
+  @@index([districtId])
   @@index([industryPartnerId])
   @@index([createdById])
   @@index([status])
+  @@index([canonicalId])
   @@map("challenges")
 }
 

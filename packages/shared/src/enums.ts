@@ -7,6 +7,8 @@ export enum UserRole {
   INVESTOR = "INVESTOR",
   CSR_PARTNER = "CSR_PARTNER",
   SUPER_ADMIN = "SUPER_ADMIN",
+  CITIZEN = "CITIZEN",
+  GOVT_OFFICIAL = "GOVT_OFFICIAL",
 }
 
 export enum InstitutionTier {
@@ -25,6 +27,7 @@ export enum VerificationStatus {
 
 export enum ChallengeStatus {
   DRAFT = "DRAFT",
+  SUBMITTED = "SUBMITTED",
   OPEN = "OPEN",
   UNDER_REVIEW = "UNDER_REVIEW",
   MATCHED = "MATCHED",

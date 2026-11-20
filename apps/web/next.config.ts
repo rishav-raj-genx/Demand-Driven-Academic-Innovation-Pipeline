@@ -7,6 +7,7 @@ const __dirname = path.dirname(__filename);
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  serverExternalPackages: ["bullmq"],
   transpilePackages: ["@sih/shared", "@sih/db"],
   outputFileTracingRoot: path.resolve(__dirname, "../../"),
 };

@@ -1,180 +1,313 @@
-# PHASE 0 HANDOFF REPORT: SIH26043
+# PHASE 3 HANDOFF REPORT: SIH26043
 
 **Project:** Demand-Driven Academic Innovation Pipeline  
 **Team:** The Unknowns  
-**Phase:** Phase 0 (Infrastructure, Monorepo Scaffolding & AI Engine Service) — **COMPLETE**  
+**Phase:** Phase 3 (AWS S3 Presigned Uploads, Challenge Intake & PostGIS Binding, Offline PWA Engine, Citizen Explorer UI) — **COMPLETE**  
 **Date:** 2026-11-20  
 
 ---
 
 ## 1. Executive Summary
-Phase 0 successfully establishes the monorepo architecture, containerized local services, shared contracts, application shells, and AI microservice for the SIH26043 platform. All core services (Postgres with PostGIS + pgvector, Redis, MinIO S3, Next.js Web App, BullMQ Worker, and FastAPI AI Engine) are tested and verified operational.
+
+Phase 3 delivers the citizen challenge intake, geospatial binding, direct-to-S3 media infrastructure, offline-first Progressive Web App (PWA) engine, and mobile-first citizen user interface for the SIH26043 platform.
+
+### Key Milestones Completed:
+1. **Milestone 3.1: Direct-to-S3 / MinIO Presigned Media Service**:
+   - Initialized `S3Client` (`apps/web/src/lib/s3.ts`) with custom MinIO/S3 endpoints and path-style addressing.
+   - Implemented `POST /api/v1/uploads/presign` issuing 5-minute presigned `PUT` URLs after validating MIME types (`image/jpeg`, `image/png`, `image/webp`, `application/pdf`), maximum size (10 MB), and purpose (`challenge_media`, `milestone_artifact`, `csr_receipt`).
+   - Implemented `GET /api/v1/uploads/view?key=...` issuing 15-minute presigned `GET` URLs after verifying object key structure and role-based permissions (preventing cross-tenant leakage on confidential receipts).
+   - **Zero byte proxying**: Browser clients upload directly to MinIO/S3 without buffering binary files in Next.js memory.
+
+2. **Milestone 3.2: Challenge Intake, PostGIS Spatial Binding & BullMQ Producer**:
+   - Implemented `apps/web/src/lib/queues.ts` establishing resilient BullMQ queue producers (`challenge-pipeline`, `hei-embedding`, `notification-dispatch`) connected to Redis.
+   - Applied database migration `20261120052859_challenge_intake_fields` adding roles `CITIZEN` and `GOVT_OFFICIAL`, status `SUBMITTED`, PostGIS point binding, and duplicate hierarchy (`canonicalId`).
+   - Implemented `POST /api/v1/challenges`: validates request with Zod, checks `clientIdempotencyKey` for offline replay protection (returning HTTP 200 without duplicate database rows), resolves district via PostGIS spatial containment/nearest-centroid query (`findDistrictByCoordinates`), sets PostGIS point (`setChallengeLocation`), writes `AuditLog`, and enqueues BullMQ background job `challenge.process`.
+   - Implemented `GET /api/v1/challenges` supporting pagination, district filter, domain filter, status filter, keyword search, and duplicate filtering (`includeDuplicates`).
+   - Implemented `GET /api/v1/challenges/[id]` returning full narrative, district, canonical parent (if merged duplicate), PostGIS coordinates, and ranked AI capability matches.
+   - Implemented `POST /api/v1/challenges/[id]/endorse` with 24-hour Redis sliding-window cooldown and database audit fallback to prevent repeat endorsement abuse.
+
+3. **Milestone 3.3: Progressive Web App (PWA) & Offline IndexedDB Outbox**:
+   - Configured `public/manifest.json` with `standalone` display mode, high-contrast dark theme, and PWA icons (192x192, 512x512, SVG).
+   - Implemented Service Worker `public/sw.js` with Cache-First strategy for static assets (`/_next/static/*`, `/icons/*`, scripts, styles) and Network-First navigation with offline fallback.
+   - Explicitly excluded all authenticated APIs (`/api/v1/auth/*`, `/api/v1/uploads/*`) and presigned S3 URLs from cache storage.
+   - Implemented IndexedDB queue in `apps/web/src/lib/offline/outbox.ts` (`idb`): persists pending drafts and binary `Blob` attachments offline, with automated sync (`syncOfflineOutbox()`) upon network restoration.
+   - Implemented `OfflineSyncProvider.tsx` with non-intrusive floating connectivity banner and manual "Sync Now" trigger.
+
+4. **Milestone 3.4: Mobile-First Citizen Challenge Submission PWA UI & Explorer**:
+   - `/challenges/new`: Intuitive submission form with domain and urgency selectors, 8 Jharkhand district presets (`JH_RAN`, `JH_ESN`, `JH_DHN`, etc.), browser GPS location trigger, and file uploader with preview.
+   - Seamless dual submission: Live S3 upload + API post when online, or local IndexedDB outbox queueing when offline.
+   - `/challenges`: Filterable explorer with status pills (`SUBMITTED`, `MATCHED`, `DUPLICATE_MERGED`, `IN_PROJECT`), urgency indicators, district badges, endorsement counters, and an interactive slide-over Pending Offline Queue drawer.
+   - `/challenges/[id]`: Full challenge narrative, presigned GET media gallery, duplicate-merge banner linking the canonical parent (with 94% similarity badge), citizen endorsement action, and Top AI-Matched HEIs panel.
 
 ---
 
-## 2. Port Allocation & Service Matrix
+## 2. Infrastructure & Port Allocation
 
-| Service | Host Port | Internal Port | Protocol / Transport | Container / Process | Healthcheck Endpoint / Probe |
+| Service | Host Port | Protocol | Container / Process | Healthcheck / Probe | Status |
 |---|---|---|---|---|---|
-| PostgreSQL 16 | `5432` | `5432` | TCP (PostgreSQL wire) | `sih26043-postgres` | `pg_isready -U postgres -d sih26043_db` |
-| Redis 7 | `6379` | `6379` | TCP (RESP) | `sih26043-redis` | `redis-cli ping` |
-| MinIO (S3 API) | `9000` | `9000` | HTTP / S3 XML | `sih26043-minio` | `GET /minio/health/live` (HTTP 200) |
-| MinIO (Console) | `9001` | `9001` | HTTP (Web UI) | `sih26043-minio` | HTTP Web Console |
-| Web App (Next.js) | `3000` | `3000` | HTTP / HTML / JSON | `apps/web` (`next dev`/`start`) | `GET /api/v1/health` (HTTP 200) |
-| AI Engine (FastAPI) | `8000` | `8000` | HTTP / JSON | `services/ai-engine` (uvicorn) | `GET /health` (HTTP 200) |
-| Worker Process | N/A | N/A | Redis Queue Consumer | `apps/worker` (`tsx`) | `pnpm --filter @sih/worker check` |
+| PostgreSQL 16 | `5432` | TCP (Wire) | `sih26043-postgres` | `pg_isready -U postgres -d sih26043_db` | Operational (PostGIS 3.7.0 + pgvector 0.8.7) |
+| Redis 7 | `6379` | TCP (RESP) | `sih26043-redis` | `redis-cli ping` | Operational (Rate limiting & queues) |
+| MinIO (S3 API) | `9000` | HTTP / S3 | `sih26043-minio` | `GET /minio/health/live` | Operational (`sih26043-uploads` bucket active) |
+| MinIO Web Console | `9001` | HTTP / HTML | `sih26043-minio` | Browser Console | Operational |
+| Next.js Web App | `3000` | HTTP / HTML | `apps/web` | `GET /api/v1/health` | Operational (Next.js 15.1.7) |
+| AI Engine | `8000` | HTTP / JSON | `services/ai-engine` | `GET /health` | Operational (FastAPI + pgvector) |
+| BullMQ Worker | N/A | Worker Daemon | `apps/worker` | `pnpm --filter @sih/worker check` | Operational |
 
 ---
 
-## 3. Environment Variables Matrix (`.env.example`)
+## 3. Direct S3 Upload Architecture (Zero Byte Proxying)
 
-| Variable Name | Default Dev Value | Purpose |
-|---|---|---|
-| `NODE_ENV` | `development` | Node.js runtime environment |
-| `PORT` | `3000` | Next.js HTTP server port |
-| `POSTGRES_USER` | `postgres` | Database superuser username |
-| `POSTGRES_PASSWORD` | `postgres_password_dev` | Database superuser password |
-| `POSTGRES_DB` | `sih26043_db` | Primary database name |
-| `POSTGRES_HOST` | `localhost` | Database host address |
-| `POSTGRES_PORT` | `5432` | Database port |
-| `DATABASE_URL` | `postgresql://postgres:postgres_password_dev@localhost:5432/sih26043_db?schema=public` | Prisma & application DB connection string |
-| `REDIS_HOST` | `localhost` | Redis server host |
-| `REDIS_PORT` | `6379` | Redis server port |
-| `REDIS_URL` | `redis://localhost:6379` | Redis connection URL for worker & cache |
-| `S3_ENDPOINT` | `http://localhost:9000` | MinIO internal API endpoint |
-| `S3_PUBLIC_ENDPOINT` | `http://localhost:9000` | Client-accessible S3 upload endpoint |
-| `S3_REGION` | `us-east-1` | S3 compatibility region |
-| `S3_ACCESS_KEY` | `minioadmin` | S3 root access key |
-| `S3_SECRET_KEY` | `minioadmin` | S3 root secret key |
-| `S3_BUCKET` | `sih26043-media` | Primary storage bucket with configured CORS |
-| `S3_FORCE_PATH_STYLE` | `true` | Required for MinIO path-style bucket addressing |
-| `JWT_SECRET` | `dev_jwt_secret_change_in_production_min_32_chars` | HMAC secret for access tokens |
-| `JWT_ACCESS_EXPIRY` | `15m` | Access token lifespan |
-| `JWT_REFRESH_SECRET` | `dev_jwt_refresh_secret_change_in_production_min_32_chars` | Refresh token secret |
-| `JWT_REFRESH_EXPIRY` | `7d` | Refresh token lifespan |
-| `INTERNAL_AI_SERVICE_KEY` | `dev_internal_ai_service_secret_key` | Constant-time authentication key for AI Engine |
-| `AI_ENGINE_URL` | `http://localhost:8000` | Base URL for Python AI Engine service |
-| `EMBEDDING_MODEL_NAME` | `sentence-transformers/all-MiniLM-L6-v2` | Primary vector embedding model (384 dims) |
-| `DEDUP_SIMILARITY_THRESHOLD`| `0.85` | Cosine similarity threshold for problem dedup |
-| `SOFT_CAPACITY_PENALTY` | `0.25` | Matching penalty factor for near-capacity labs |
-| `HARD_CAPACITY_PENALTY` | `0.45` | Matching penalty factor for over-capacity labs |
-
----
-
-## 4. Exact Verified Commands & Observed Results
-
-### Infrastructure Health (`docker compose up -d`)
-```bash
-docker compose ps -a
 ```
-```text
-NAME                  IMAGE                                     STATUS                      PORTS
-sih26043-minio        minio/minio:latest                        Up (healthy)                0.0.0.0:9000-9001->9000-9001/tcp
-sih26043-minio-init   minio/mc:latest                           Exited (0)                  
-sih26043-postgres     sih26043-postgres:pg16-postgis-pgvector   Up (healthy)                0.0.0.0:5432->5432/tcp
-sih26043-redis        redis:7-alpine                            Up (healthy)                0.0.0.0:6379->6379/tcp
-```
-
-### PostgreSQL Extensions Verification
-```bash
-docker exec -i sih26043-postgres psql -U postgres -d sih26043_db -c "\dx"
-```
-```text
-                                List of installed extensions
-  Name   | Version |   Schema   |                        Description                         
----------+---------+------------+------------------------------------------------------------
- plpgsql | 1.0     | pg_catalog | PL/pgSQL procedural language
- postgis | 3.7.0   | public     | PostGIS geometry and geography spatial types and functions
- vector  | 0.8.7   | public     | vector data type and ivfflat and hnsw access methods
-```
-
-### Redis Ping
-```bash
-docker exec -i sih26043-redis redis-cli ping
-# Output: PONG
-```
-
-### MinIO S3 CORS Preflight Test
-```bash
-curl -sI -X OPTIONS http://localhost:9000/sih26043-media/test -H "Origin: http://localhost:3000" -H "Access-Control-Request-Method: PUT"
-```
-```text
-HTTP/1.1 204 No Content
-Access-Control-Allow-Credentials: true
-Access-Control-Allow-Methods: PUT
-Access-Control-Allow-Origin: http://localhost:3000
-```
-
-### Shared Package Tests (`vitest`)
-```bash
-pnpm --filter @sih/shared test
-```
-```text
- ✓ src/plm.test.ts (6 tests) 2ms
- Test Files  1 passed (1)
-      Tests  6 passed (6)
-```
-
-### Next.js Production Build & Health Endpoint
-```bash
-pnpm --filter @sih/web build
-curl -i http://localhost:3000/api/v1/health
-```
-```text
-HTTP/1.1 200 OK
-content-type: application/json
-{"status":"ok","timestamp":"2026-11-20T04:09:45.494Z","service":"web"}
-```
-
-### BullMQ Worker Health Probe
-```bash
-pnpm --filter @sih/worker check
-```
-```text
-{"level":30,"name":"sih-worker","pong":"PONG","msg":"Redis ping check responded successfully"}
-{"level":30,"name":"sih-worker","msg":"Redis health verification succeeded"}
-```
-
-### AI Engine Pytest Suite
-```bash
-cd services/ai-engine && .venv/bin/pytest -v
-```
-```text
-tests/test_health.py::test_config_defaults PASSED                        [ 20%]
-tests/test_health.py::test_health_endpoint PASSED                        [ 40%]
-tests/test_health.py::test_internal_ping_valid_key PASSED                [ 60%]
-tests/test_health.py::test_internal_ping_missing_key PASSED              [ 80%]
-tests/test_health.py::test_internal_ping_invalid_key PASSED              [100%]
-============================== 5 passed in 2.76s ===============================
-```
-
-### AI Engine Live HTTP Endpoints
-```bash
-# 1. Public Health Check
-curl -i http://127.0.0.1:8000/health
-# Response: 200 OK -> {"status":"ok","pgvector":true}
-
-# 2. Authenticated Ping (Valid Key)
-curl -i -H "X-Internal-Service-Key: dev_internal_ai_service_secret_key" http://127.0.0.1:8000/internal/v1/ping
-# Response: 200 OK -> {"status":"ok","message":"pong"}
-
-# 3. Missing Key Rejection
-curl -i http://127.0.0.1:8000/internal/v1/ping
-# Response: 401 Unauthorized -> {"detail":"Missing required X-Internal-Service-Key header"}
-
-# 4. Invalid Key Rejection
-curl -i -H "X-Internal-Service-Key: bad-key" http://127.0.0.1:8000/internal/v1/ping
-# Response: 403 Forbidden -> {"detail":"Invalid internal service key"}
+[ Citizen Browser / PWA ]
+       │
+       │ 1. POST /api/v1/uploads/presign (fileName, contentType, fileSizeBytes, purpose)
+       ▼
+[ Next.js API Route ]
+       │ 2. Validates JWT Auth, MIME whitelist, size <= 10MB
+       │ 3. Generates sanitized key `${purpose}/${userId}/${uuid}.${ext}`
+       │ 4. Calls AWS SDK PutObjectCommand presigner (300s expiry)
+       ▼
+[ Citizen Browser / PWA ] <── Returns { uploadUrl, key }
+       │
+       │ 5. Direct HTTP PUT uploadUrl (Binary File Buffer)
+       ▼
+[ MinIO / S3 Object Storage ] (Zero Next.js memory overhead)
+       │
+       │ 6. Upload complete (200 OK)
+       ▼
+[ Citizen Browser / PWA ]
+       │ 7. POST /api/v1/challenges { title, description, mediaKeys: [key], ... }
+       ▼
+[ Next.js Challenges API ]
+       │ 8. Binds PostGIS coordinates, writes Challenge, enqueues BullMQ job
+       ▼
+[ PostgreSQL / PostGIS ]
 ```
 
 ---
 
-## 5. Instructions for Phase 1 Execution
+## 4. API Endpoints Reference
 
-When starting Phase 1 (Data Layer & Authentication):
-1. **Infrastructure**: Verify local containers are up with `pnpm infra:up` (or `docker compose up -d`).
-2. **Database Modeling**: In `packages/db`, initialize `prisma/schema.prisma` with:
-   - PostgreSQL provider with `postgresqlExtensions` preview feature enabled for `postgis` and `vector`.
-   - Models conforming to `@sih/shared` enums: `UserRole`, `InstitutionTier`, `ProjectPhase`, `ChallengeStatus`, `VerificationStatus`.
-3. **Run Migrations**: Run `pnpm --filter @sih/db prisma migrate dev` to establish database schema and foreign keys.
-4. **Seed Pipeline**: Implement seed scripts for institutions across Tier 1..3 with spatial coordinates and sample challenges.
+### Uploads API
+- **`POST /api/v1/uploads/presign`**
+  - **Auth**: Required (`requireAuth`)
+  - **Body**: `{ fileName: string, contentType: string, fileSizeBytes: number, purpose: "challenge_media" | "milestone_artifact" | "csr_receipt" }`
+  - **Constraints**: MIME whitelist (`image/jpeg`, `image/png`, `image/webp`, `application/pdf`), size <= 10 MB.
+  - **Response (200)**: `{ success: true, data: { uploadUrl: string, key: string, expiresIn: 300, purpose: string } }`
+- **`GET /api/v1/uploads/view?key=<objectKey>`**
+  - **Auth**: Required (`requireAuth`)
+  - **Constraints**: Key format and prefix validation, path-traversal rejection, cross-tenant CSR receipt isolation.
+  - **Response (200)**: `{ success: true, data: { viewUrl: string, key: string, expiresIn: 900 } }`
+
+### Challenges API
+- **`POST /api/v1/challenges`**
+  - **Auth**: `CITIZEN`, `STUDENT`, `GOVT_OFFICIAL`, `SUPER_ADMIN`
+  - **Body**: `{ title: string, description: string, domain?: string, urgency?: "LOW"|"MEDIUM"|"HIGH"|"CRITICAL", latitude?: number, longitude?: number, mediaKeys?: string[], clientIdempotencyKey: string (UUID) }`
+  - **Idempotency**: Replaying identical `clientIdempotencyKey` returns HTTP 200 with the existing record.
+  - **PostGIS**: Spatial containment lookup in `districts` polygon; sets PostGIS `location = ST_SetSRID(ST_MakePoint(lng, lat), 4326)`.
+  - **Queueing**: Enqueues background job `challenge.process` in `challenge-pipeline` BullMQ queue.
+  - **Response (201 / 200)**: `{ success: true, data: Challenge }`
+- **`GET /api/v1/challenges`**
+  - **Query Params**: `page`, `limit`, `districtId`, `domain`, `status`, `search`, `includeDuplicates`
+  - **Response (200)**: `{ success: true, data: Challenge[], pagination: { total, page, limit, totalPages, hasNextPage, hasPrevPage } }`
+- **`GET /api/v1/challenges/[id]`**
+  - **Response (200)**: Returns challenge record with `district`, `canonicalChallenge`, `duplicateChallenges`, and ranked `capabilityMatches`.
+- **`POST /api/v1/challenges/[id]/endorse`**
+  - **Auth**: Public / Authenticated with sliding window rate limiter (1 endorsement / 24 hours per user/IP).
+  - **Response (200)**: `{ success: true, message: "Challenge endorsed successfully", data: { challengeId, endorsementCount } }`
+
+---
+
+## 5. Offline PWA Outbox Specification
+
+### IndexedDB Outbox Record Schema (`apps/web/src/lib/offline/outbox.ts`)
+```typescript
+interface OutboxChallengeItem {
+  clientIdempotencyKey: string;     // Unique UUID generated on the client
+  payload: {
+    title: string;
+    description: string;
+    domain: string;
+    urgency: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+    latitude?: number;
+    longitude?: number;
+  };
+  mediaFiles: Array<{
+    name: string;
+    type: string;
+    size: number;
+    blob: Blob;
+  }>;
+  status: "QUEUED" | "SYNCING" | "FAILED";
+  retryCount: number;
+  lastError?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+```
+
+### Sync Pipeline Behavior
+1. Triggered on window `online` event or manual "Sync All Now" click.
+2. For each queued item:
+   - Sets status to `SYNCING`.
+   - Iterates through `mediaFiles`: requests presigned URL from `POST /api/v1/uploads/presign` -> executes direct HTTP `PUT` to MinIO/S3 -> collects generated `mediaKeys`.
+   - Posts complete challenge payload to `POST /api/v1/challenges` with `clientIdempotencyKey`.
+   - On HTTP 201 or 200 (idempotent replay), removes item from IndexedDB.
+   - On network or server failure, updates status to `FAILED`, increments `retryCount`, records `lastError`, and preserves draft in outbox.
+
+---
+
+## 6. Exact Verified Test Runs & Results
+
+### A. Web Test Suite (`pnpm --filter @sih/web test`)
+```bash
+pnpm --filter @sih/web test
+```
+```text
+ ✓ src/lib/offline/outbox.test.ts (6 tests) 17ms
+   ✓ IndexedDB Offline Outbox Queue & Sync Pipeline > should enqueue challenge drafts with binary file blobs
+   ✓ IndexedDB Offline Outbox Queue & Sync Pipeline > should list and count pending queued challenges
+   ✓ IndexedDB Offline Outbox Queue & Sync Pipeline > should skip synchronization when browser is offline
+   ✓ IndexedDB Offline Outbox Queue & Sync Pipeline > should upload media blobs and sync challenge when online
+   ✓ IndexedDB Offline Outbox Queue & Sync Pipeline > should handle network upload errors defensively and record failure state
+   ✓ IndexedDB Offline Outbox Queue & Sync Pipeline > should handle idempotent replay (HTTP 200) by successfully removing outbox draft
+
+ ✓ src/lib/auth/auth-utils.test.ts (15 tests) 106ms
+   ✓ Password Hashing & Verification (Argon2id) > should hash a password into a valid argon2id formatted string
+   ✓ Password Hashing & Verification (Argon2id) > should verify correct password and reject incorrect password
+   ✓ Password Hashing & Verification (Argon2id) > should defensively handle invalid inputs without throwing
+   ✓ JWT Signing, Expiry & Tamper Rejection (jose) > should sign and verify access token with 15m expiration
+   ✓ JWT Signing, Expiry & Tamper Rejection (jose) > should sign and verify refresh token with 7d expiration
+   ✓ JWT Signing, Expiry & Tamper Rejection (jose) > should reject tampered or corrupted JWT tokens
+   ✓ JWT Signing, Expiry & Tamper Rejection (jose) > should reject expired JWT tokens
+   ✓ JWT Signing, Expiry & Tamper Rejection (jose) > should compute deterministic SHA-256 hash for refresh token DB storage
+   ✓ HttpOnly & Lax Cookie Configurations > should format cookie string with HttpOnly, SameSite=Lax, and Path=/
+   ✓ HttpOnly & Lax Cookie Configurations > should append access and refresh token cookies to headers
+   ✓ HttpOnly & Lax Cookie Configurations > should clear auth cookies with Max-Age=0
+   ✓ HttpOnly & Lax Cookie Configurations > should extract tokens from cookie or authorization header
+   ✓ Zod 3-Layer Request Validation Helper (parseJsonBody) > should reject empty or malformed JSON payload with 400 INVALID_JSON
+   ✓ Zod 3-Layer Request Validation Helper (parseJsonBody) > should reject schema validation failure with 400 VALIDATION_ERROR and field details
+   ✓ Zod 3-Layer Request Validation Helper (parseJsonBody) > should return parsed strongly-typed data when input is valid
+
+ ✓ src/lib/verification/verification.test.ts (6 tests) 106ms
+   ✓ 1. should verify all 10 seeded Jharkhand HEIs with Controlled Mock MVP metadata
+   ✓ 2. should reject negative AISHE test codes with REJECTED and NOT_FOUND statuses
+   ✓ 3. should verify valid MCA CINs and Udyam numbers, and reject fraudulent ones
+   ✓ 4. POST /api/v1/verify/aishe should validate format, query provider, update DB, and log audit
+   ✓ 5. POST /api/v1/verify/industry should verify MCA CIN or Udyam number and activate partner
+   ✓ 6. Protected Route Gate: unverified org accounts must receive 403 ORG_NOT_VERIFIED
+
+ ✓ src/app/api/v1/uploads/uploads-integration.test.ts (13 tests) 130ms
+   ✓ 1. POST /api/v1/uploads/presign should require authentication (401 on missing token)
+   ✓ 2. POST /api/v1/uploads/presign should reject disallowed MIME type (application/x-sh)
+   ✓ 3. POST /api/v1/uploads/presign should reject oversized file (>10MB)
+   ✓ 4. POST /api/v1/uploads/presign should reject invalid purpose
+   ✓ 5. POST /api/v1/uploads/presign should issue 5-minute presigned PUT URL and sanitized key
+   ✓ 6. S3 Key Validator should reject path traversal keys (../, //, \)
+   ✓ 7. Real MinIO Upload & Retrieval: should upload PNG buffer via presigned PUT and download exact bytes
+   ✓ 8. GET /api/v1/uploads/view should require authentication (401 on missing token)
+   ✓ 9. GET /api/v1/uploads/view should reject missing or malformed key query param
+   ✓ 10. GET /api/v1/uploads/view should allow challenge_media view by any authenticated user
+   ✓ 11. GET /api/v1/uploads/view should allow uploader to view their own milestone artifact
+   ✓ 12. GET /api/v1/uploads/view should allow super admin to view any artifact or receipt
+   ✓ 13. GET /api/v1/uploads/view should forbid unauthorized user from viewing private csr_receipt
+
+ ✓ src/app/api/v1/auth/auth-integration.test.ts (9 tests) 181ms
+   ✓ 1. POST /api/v1/auth/register should register a new student user and return sanitized data
+   ✓ 2. POST /api/v1/auth/login should authenticate, return HttpOnly Lax cookies, and omit passwordHash
+   ✓ 3. GET /api/v1/auth/me should return current user profile via access token cookie
+   ✓ 4. POST /api/v1/auth/refresh should rotate refresh token and issue new token pair
+   ✓ 5. POST /api/v1/auth/refresh should detect token reuse attack and revoke entire session family
+   ✓ 6. POST /api/v1/auth/logout should revoke token and clear cookies with Max-Age=0
+   ✓ 7. GET /api/v1/auth/me should return 401 UNAUTHORIZED when no token is provided
+   ✓ 8. requireRoles should reject unauthorized role with 403 FORBIDDEN
+   ✓ 9. requireVerifiedOrg should reject unverified organization with 403 ORG_NOT_VERIFIED
+
+ ✓ src/app/api/v1/challenges/challenges-integration.test.ts (14 tests) 159ms
+   ✓ 1. POST /api/v1/challenges should require authentication (401 on missing token)
+   ✓ 2. POST /api/v1/challenges should reject unauthorized role (403 FORBIDDEN for INVESTOR)
+   ✓ 3. POST /api/v1/challenges should reject invalid coordinates (latitude out of range)
+   ✓ 4. POST /api/v1/challenges should reject invalid title or short description
+   ✓ 5. POST /api/v1/challenges should reject mediaKeys that do not match challenge_media prefix
+   ✓ 6. POST /api/v1/challenges should create challenge, resolve district, set PostGIS location, and enqueue BullMQ job
+   ✓ 7. POST /api/v1/challenges should be idempotent when replaying duplicate clientIdempotencyKey
+   ✓ 8. GET /api/v1/challenges should return paginated list of challenges
+   ✓ 9. GET /api/v1/challenges should filter by districtId
+   ✓ 10. GET /api/v1/challenges should filter by domain
+   ✓ 11. GET /api/v1/challenges should perform full-text search over title and description
+   ✓ 12. GET /api/v1/challenges/[id] should return 404 for non-existent ID
+   ✓ 13. GET /api/v1/challenges/[id] should return challenge details with district and capability matches
+   ✓ 14. POST /api/v1/challenges/[id]/endorse should increment endorsement count and rate limit repeat endorsements
+
+ ✓ src/components/AppShell.test.ts (5 tests) 3ms
+   ✓ should return empty array when no role is provided
+   ✓ should provide STUDENT with Dashboard and Challenges routes
+   ✓ should provide INSTITUTION_ADMIN and HEI_ADMIN with HEI Portal and Verify Org
+   ✓ should provide INDUSTRY_PARTNER with Industry Hub and Verify Org
+   ✓ should provide SUPER_ADMIN with full portal access including Admin Console
+
+ Test Files  7 passed (7)
+      Tests  68 passed (68)
+   Duration  742ms
+```
+
+### B. Monorepo-Wide Summary
+- `@sih/shared`: 6 passing unit tests (`plm.test.ts`)
+- `@sih/db`: 9 passing integration tests (`spatial.test.ts`)
+- `@sih/web`: 68 passing unit & integration tests (7 test suites)
+- **Total: 83 passing tests across monorepo (0 failures)**
+- **TypeScript: 0 compiler errors (`tsc --noEmit`) across all workspace packages**
+
+### C. Production Build Output (`apps/web`)
+```text
+Route (app)                                 Size  First Load JS
+┌ ○ /                                      162 B         103 kB
+├ ○ /_not-found                            992 B         103 kB
+├ ƒ /api/v1/auth/login                     162 B         103 kB
+├ ƒ /api/v1/auth/logout                    162 B         103 kB
+├ ƒ /api/v1/auth/me                        162 B         103 kB
+├ ƒ /api/v1/auth/refresh                   162 B         103 kB
+├ ƒ /api/v1/auth/register                  162 B         103 kB
+├ ƒ /api/v1/challenges                     162 B         103 kB
+├ ƒ /api/v1/challenges/[id]                162 B         103 kB
+├ ƒ /api/v1/challenges/[id]/endorse        162 B         103 kB
+├ ƒ /api/v1/challenges/claim               162 B         103 kB
+├ ƒ /api/v1/health                         162 B         103 kB
+├ ƒ /api/v1/transitions/sign               162 B         103 kB
+├ ƒ /api/v1/uploads/presign                162 B         103 kB
+├ ƒ /api/v1/uploads/view                   162 B         103 kB
+├ ƒ /api/v1/verify/aishe                   162 B         103 kB
+├ ƒ /api/v1/verify/industry                162 B         103 kB
+├ ○ /challenges                          7.77 kB         117 kB
+├ ƒ /challenges/[id]                     5.37 kB         114 kB
+├ ○ /challenges/new                      9.53 kB         118 kB
+├ ○ /dashboard                           3.38 kB         112 kB
+├ ○ /login                               3.59 kB         136 kB
+├ ○ /onboarding/verify                   4.77 kB         114 kB
+└ ○ /register                            3.87 kB         136 kB
++ First Load JS shared by all             102 kB
+  ├ chunks/901-4bb38870caa2eef7.js       46.2 kB
+  ├ chunks/e7e3044d-ffe374be2430ae06.js  54.2 kB
+  └ other shared chunks (total)          1.93 kB
+
+ƒ Middleware                             39.1 kB
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+```
+
+---
+
+## 7. Instructions for Phase 4 Execution
+
+When starting Phase 4 (AI Engine & Semantic Matchmaking Pipeline):
+1. **Challenge Pipeline Worker (`apps/worker`)**:
+   - Consume jobs from `challenge-pipeline` BullMQ queue.
+   - Dispatch challenge title + problem statement to `services/ai-engine` for text embedding generation (`all-MiniLM-L6-v2` or `text-embedding-004`).
+   - Store 768-dim / 384-dim vector into `challenges.embedding` column using PostgreSQL pgvector.
+2. **Deduplication & Canonical Merging**:
+   - Perform pgvector cosine distance search against existing challenges in the same district/domain.
+   - If cosine similarity >= 0.88, flag as duplicate and link to canonical parent (`canonicalId`).
+3. **HEI Capability Matchmaking**:
+   - Compare challenge embedding against `institutions.capability_embedding` with faculty capacity penalties.
+   - Populate `capability_matches` records with rank and similarity scores.
